@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MYtube — 관심 채널 통합 관리</title>
+    <meta
+      name="description"
+      content="유튜브 구독을 주제별 폴더로 정리하고, X·Facebook 링크를 함께 관리하는 개인 웹앱"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --paper: #f7f3ec;
+        --ink: #1a1714;
+        --crimson: #c41e3a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Source Sans 3", system-ui, sans-serif;
+        color: var(--ink);
+        background: var(--paper);
+      }
+      .wrap {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 72px 24px 48px;
+        text-align: center;
+      }
+      .brand {
+        font-family: Fraunces, Georgia, serif;
+        font-size: clamp(2.75rem, 8vw, 3.75rem);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+      .brand span {
+        color: var(--crimson);
+      }
+      .lead {
+        margin: 18px 0 0;
+        font-size: 1.125rem;
+        line-height: 1.55;
+        color: rgba(26, 23, 20, 0.6);
+      }
+      .card {
+        margin-top: 36px;
+        text-align: left;
+        border: 1px solid rgba(26, 23, 20, 0.12);
+        border-radius: 16px;
+        background: #fff;
+        padding: 20px 22px;
+      }
+      .card h2 {
+        margin: 0 0 10px;
+        font-size: 0.95rem;
+        font-weight: 700;
+      }
+      .card p,
+      .card li {
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.55;
+        color: rgba(26, 23, 20, 0.72);
+      }
+      .card ol {
+        margin: 12px 0 0;
+        padding-left: 1.2rem;
+      }
+      .card li + li {
+        margin-top: 6px;
+      }
+      .warn {
+        border-color: rgba(196, 30, 58, 0.35);
+        background: rgba(196, 30, 58, 0.05);
+      }
+      .warn h2 {
+        color: var(--crimson);
+      }
+      .actions {
+        margin-top: 28px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+      }
+      a.btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 18px;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      a.primary {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      a.secondary {
+        border: 1px solid rgba(26, 23, 20, 0.18);
+        color: var(--ink);
+        background: transparent;
+      }
+      code {
+        font-size: 0.85em;
+        background: rgba(26, 23, 20, 0.06);
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+      }
+      .foot {
+        margin-top: 40px;
+        font-size: 0.75rem;
+        color: rgba(26, 23, 20, 0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <h1 class="brand">MY<span>tube</span></h1>
+      <p class="lead">
+        관심 유튜브 채널을 주제별 폴더로 모으고, 폴더 안에서 바로 재생하세요.
+        X·Facebook은 URL 링크 버튼으로 함께 정리합니다.
+      </p>
+
+      <div class="card warn">
+        <h2>이 주소는 앱 실행 주소가 아닙니다</h2>
+        <p>
+          <code>github.io</code>는 <strong>정적 파일만</strong> 호스팅합니다.
+          MYtube는 Next.js + Google 로그인 + DB가 필요한 웹앱이라 GitHub Pages에서
+          동작하지 않습니다. 그래서 예전에는 README 문서만 보였습니다.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>로컬에서 화면 보기</h2>
+        <ol>
+          <li>저장소를 클론한 뒤 <code>npm install</code></li>
+          <li><code>.env</code>에 Google OAuth 값 설정</li>
+          <li><code>npm run dev</code> 실행</li>
+          <li>
+            브라우저에서
+            <code>http://localhost:3000/demo</code> (미리보기) 또는
+            <code>http://localhost:3000</code>
+          </li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>실제 배포는 어디에?</h2>
+        <p>
+          Next.js 앱은 <strong>Vercel</strong>, Railway, Fly.io 같은 Node
+          서버/서버리스 환경에 배포해야 합니다. GitHub Pages로는 로그인·API·DB를
+          돌릴 수 없습니다.
+        </p>
+      </div>
+
+      <div class="actions">
+        <a class="btn primary" href="https://github.com/consti000/MYtube"
+          >GitHub 저장소</a
+        >
+        <a
+          class="btn secondary"
+          href="https://github.com/consti000/MYtube#google-oauth-%EC%84%A4%EC%A0%95-%ED%95%84%EC%88%98"
+          >설정 가이드</a
+        >
+      </div>
+
+      <p class="foot">MYtube · personal feed hub</p>
+    </main>
+  </body>
+</html>

@@ -59,6 +59,14 @@ OAuth 동의 화면이 **테스트**이면, 등록된 계정만 로그인할 수
 
 UI만 미리 보려면 `http://localhost:3000/demo` 를 사용하세요.
 
+## 배포 안내 (중요)
+
+**GitHub Pages (`*.github.io`)에는 이 앱을 배포할 수 없습니다.**  
+Pages는 정적 HTML만 제공하고, MYtube는 Next.js 서버·Auth.js·Prisma DB가 필요합니다.
+
+- GitHub Pages에는 안내 랜딩만 둡니다 (`/docs`).
+- 실제 화면: 로컬 `npm run dev`, 또는 **Vercel** 등 Node 호스팅에 배포하세요.
+- 프로덕션 DB는 SQLite 대신 PostgreSQL을 권장합니다.
 
 ```bash
 npm run db:migrate
