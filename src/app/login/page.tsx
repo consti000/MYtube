@@ -1,6 +1,84 @@
+import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 
-export default function LoginPage() {
+function googleOAuthConfigured() {
+  const id = process.env.AUTH_GOOGLE_ID?.trim() ?? "";
+  const secret = process.env.AUTH_GOOGLE_SECRET?.trim() ?? "";
+  const idOk = id.includes(".apps.googleusercontent.com");
+  const secretOk = secret.length >= 10 && !secret.includes("@");
+  return idOk && secretOk;
+}
+
+type Props = {
+  searchParams: Promise<{ error?: string }>;
+};
+
+function AuthErrorBanner({ error }: { error?: string }) {
+  if (!error || error === "config") return null;
+
+  const isAccessDenied =
+    error === "AccessDenied" ||
+    error === "access_denied" ||
+    error.toLowerCase().includes("access");
+
+  if (isAccessDenied) {
+    return (
+      <div className="mt-8 rounded-xl border border-crimson/30 bg-crimson/5 px-4 py-4 text-left text-sm text-ink/80">
+        <p className="font-semibold text-crimson">
+          Google이 로그인을 차단했습니다 (테스트 사용자 필요)
+        </p>
+        <p className="mt-2 leading-relaxed">
+          OAuth 동의 화면이 <strong>테스트</strong> 상태일 때는, 개발자가 등록한
+          테스트 사용자만 로그인할 수 있습니다. 앱 코드 문제가 아니라{" "}
+          <strong>Google Cloud 설정</strong> 문제입니다.
+        </p>
+        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-ink/65">
+          <li>
+            <a
+              className="text-crimson underline"
+              href="https://console.cloud.google.com/apis/credentials/consent"
+              target="_blank"
+              rel="noreferrer"
+            >
+              OAuth 동의 화면
+            </a>
+            으로 이동
+          </li>
+          <li>
+            아래쪽 <strong>테스트 사용자</strong> → <strong>ADD USERS</strong>
+          </li>
+          <li>
+            로그인에 쓸 Gmail을 추가 (예: 지금 쓰려던 계정) 후 저장
+          </li>
+          <li>1~2분 뒤 다시 「Google로 계속하기」 클릭</li>
+        </ol>
+        <p className="mt-3 text-xs text-ink/45">
+          개인용으로만 쓸 거면 앱을 “프로덕션”으로 올릴 필요는 없습니다. 테스트
+          사용자만 추가하면 됩니다.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8 rounded-xl border border-crimson/30 bg-crimson/5 px-4 py-4 text-left text-sm text-ink/80">
+      <p className="font-semibold text-crimson">로그인에 실패했습니다</p>
+      <p className="mt-2 text-ink/65">
+        오류 코드: <code className="rounded bg-ink/5 px-1">{error}</code>
+      </p>
+      <p className="mt-2 text-xs text-ink/45">
+        OAuth 클라이언트 ID/시크릿, 리디렉션 URI, 테스트 사용자를 다시 확인해
+        주세요.
+      </p>
+    </div>
+  );
+}
+
+export default async function LoginPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const configured = googleOAuthConfigured();
+  const showConfigError = params.error === "config" || !configured;
+
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center px-6">
       <div className="absolute inset-0 -z-10 overflow-hidden">
@@ -16,16 +94,59 @@ export default function LoginPage() {
           관심 채널을 주제별 폴더로 모으고, 폴더 안에서 바로 재생하세요.
         </p>
 
+        {showConfigError ? (
+          <div className="mt-8 rounded-xl border border-crimson/30 bg-crimson/5 px-4 py-4 text-left text-sm text-ink/80">
+            <p className="font-semibold text-crimson">Google OAuth 설정이 필요합니다</p>
+            <p className="mt-2 leading-relaxed">
+              <code className="rounded bg-ink/5 px-1">AUTH_GOOGLE_ID</code>에는 Gmail
+              주소가 아니라 Google Cloud의{" "}
+              <strong>OAuth 클라이언트 ID</strong>
+              (<code className="rounded bg-ink/5 px-1">*.apps.googleusercontent.com</code>
+              )를,{" "}
+              <code className="rounded bg-ink/5 px-1">AUTH_GOOGLE_SECRET</code>에는{" "}
+              <strong>클라이언트 보안 비밀번호</strong>를 넣어야 합니다.
+            </p>
+            <p className="mt-3 text-xs text-ink/45">
+              UI만 먼저 보려면{" "}
+              <a href="/demo" className="text-crimson underline">
+                /demo
+              </a>
+              를 이용하세요.
+            </p>
+          </div>
+        ) : (
+          <AuthErrorBanner error={params.error} />
+        )}
+
+        {!showConfigError && !params.error ? (
+          <div className="mt-8 rounded-xl border border-ink/10 bg-paper/80 px-4 py-3 text-left text-xs text-ink/55">
+            테스트 모드에서는{" "}
+            <a
+              href="https://console.cloud.google.com/apis/credentials/consent"
+              className="text-crimson underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              OAuth 동의 화면 → 테스트 사용자
+            </a>
+            에 본인 Gmail을 추가해야 로그인됩니다.
+          </div>
+        ) : null}
+
         <form
-          className="mt-10"
+          className="mt-8"
           action={async () => {
             "use server";
+            if (!googleOAuthConfigured()) {
+              redirect("/login?error=config");
+            }
             await signIn("google", { redirectTo: "/" });
           }}
         >
           <button
             type="submit"
-            className="inline-flex w-full items-center justify-center gap-3 rounded-xl bg-ink px-6 py-3.5 text-sm font-semibold text-paper shadow-lg transition hover:bg-ink/90"
+            disabled={!configured}
+            className="inline-flex w-full items-center justify-center gap-3 rounded-xl bg-ink px-6 py-3.5 text-sm font-semibold text-paper shadow-lg transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
               <path

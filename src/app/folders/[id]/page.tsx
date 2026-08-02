@@ -30,7 +30,11 @@ export default async function FolderDetailPage({ params }: Props) {
     prisma.folder.findMany({
       where: { userId },
       orderBy: { order: "asc" },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { channels: true, links: true } },
+      },
     }),
   ]);
 
@@ -52,6 +56,12 @@ export default async function FolderDetailPage({ params }: Props) {
         new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
     );
 
+  const folderList = folders.map((f) => ({
+    id: f.id,
+    name: f.name,
+    count: f._count.channels + f._count.links,
+  }));
+
   return (
     <>
       <AppNav email={session?.user?.email} />
@@ -62,7 +72,7 @@ export default async function FolderDetailPage({ params }: Props) {
           channelCount: folder.channels.length,
           linkCount: folder.links.length,
         }}
-        folders={folders}
+        folders={folderList}
         videos={videos}
         links={folder.links.map((fl) => ({
           id: fl.link.id,

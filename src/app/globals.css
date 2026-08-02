@@ -14,10 +14,7 @@
 }
 
 body {
-  background:
-    radial-gradient(ellipse 120% 80% at 10% -20%, rgba(196, 30, 58, 0.08), transparent 50%),
-    radial-gradient(ellipse 80% 60% at 100% 0%, rgba(26, 23, 20, 0.06), transparent 45%),
-    var(--color-paper);
+  background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
   min-height: 100vh;

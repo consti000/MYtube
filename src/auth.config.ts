@@ -20,12 +20,13 @@ export const authConfig = {
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
+    error: "/login",
   },
   callbacks: {
     authorized({ auth, request }) {
       const { pathname } = request.nextUrl;
       if (pathname.startsWith("/api/")) return true;
-      if (pathname === "/login") return true;
+      if (pathname === "/login" || pathname === "/demo") return true;
       return !!auth?.user;
     },
     async jwt({ token, user }) {
