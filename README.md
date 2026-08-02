@@ -84,8 +84,9 @@ Storage → **Create Database** → **Postgres** → 프로젝트에 연결
 | `AUTH_SECRET` | 긴 임의 문자열 |
 | `AUTH_GOOGLE_ID` | Google OAuth 클라이언트 ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth 시크릿 |
-| `AUTH_URL` | `https://YOUR-PROJECT.vercel.app` (배포 URL) |
+| `AUTH_URL` | `https://YOUR-PROJECT.vercel.app` (**https**, 끝 `/` 없음) |
 
+`AUTH_URL`을 `http://`로 넣으면 Google `redirect_uri_mismatch`가 납니다.  
 Production / Preview에 모두 넣는 것을 권장합니다.
 
 ### 5) 빌드 설정

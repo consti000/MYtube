@@ -22,6 +22,7 @@ export const authConfig = {
     signIn: "/login",
     error: "/login",
   },
+  trustHost: true,
   callbacks: {
     authorized({ auth, request }) {
       const { pathname } = request.nextUrl;
@@ -42,5 +43,4 @@ export const authConfig = {
       return session;
     },
   },
-  trustHost: true,
 } satisfies NextAuthConfig;

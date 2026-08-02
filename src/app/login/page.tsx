@@ -60,6 +60,39 @@ function AuthErrorBanner({ error }: { error?: string }) {
     );
   }
 
+  if (error === "Configuration") {
+    return (
+      <div className="mt-8 rounded-xl border border-crimson/30 bg-crimson/5 px-4 py-4 text-left text-sm text-ink/80">
+        <p className="font-semibold text-crimson">서버 설정 오류 (Configuration)</p>
+        <p className="mt-2 leading-relaxed">
+          Google까지는 통과했지만, 앱이 콜백을 처리하지 못했습니다. Vercel 환경
+          변수와 DB를 확인하세요.
+        </p>
+        <ul className="mt-3 list-disc space-y-1.5 pl-5 text-ink/65">
+          <li>
+            <code className="rounded bg-ink/5 px-1">AUTH_URL</code> ={" "}
+            <code className="rounded bg-ink/5 px-1">https://…</code> (반드시 https)
+          </li>
+          <li>
+            <code className="rounded bg-ink/5 px-1">AUTH_SECRET</code> 존재 여부
+          </li>
+          <li>
+            <code className="rounded bg-ink/5 px-1">DATABASE_URL</code> / Neon 연결
+          </li>
+          <li>
+            Google 리디렉션 URI ={" "}
+            <code className="rounded bg-ink/5 px-1">
+              https://도메인/api/auth/callback/google
+            </code>
+          </li>
+        </ul>
+        <p className="mt-3 text-xs text-ink/45">
+          환경 변수 수정 후 Vercel에서 Redeploy 한 뒤 다시 시도하세요.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-8 rounded-xl border border-crimson/30 bg-crimson/5 px-4 py-4 text-left text-sm text-ink/80">
       <p className="font-semibold text-crimson">로그인에 실패했습니다</p>
@@ -98,13 +131,37 @@ export default async function LoginPage({ searchParams }: Props) {
           <div className="mt-8 rounded-xl border border-crimson/30 bg-crimson/5 px-4 py-4 text-left text-sm text-ink/80">
             <p className="font-semibold text-crimson">Google OAuth 설정이 필요합니다</p>
             <p className="mt-2 leading-relaxed">
-              <code className="rounded bg-ink/5 px-1">AUTH_GOOGLE_ID</code>에는 Gmail
-              주소가 아니라 Google Cloud의{" "}
-              <strong>OAuth 클라이언트 ID</strong>
-              (<code className="rounded bg-ink/5 px-1">*.apps.googleusercontent.com</code>
-              )를,{" "}
-              <code className="rounded bg-ink/5 px-1">AUTH_GOOGLE_SECRET</code>에는{" "}
-              <strong>클라이언트 보안 비밀번호</strong>를 넣어야 합니다.
+              Vercel에 배포된 경우, 로컬 <code className="rounded bg-ink/5 px-1">.env</code>가
+              자동으로 올라가지 않습니다.{" "}
+              <strong>Vercel → Project → Settings → Environment Variables</strong>에
+              아래 값을 넣어야 합니다.
+            </p>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-ink/65">
+              <li>
+                <code className="rounded bg-ink/5 px-1">AUTH_GOOGLE_ID</code> —{" "}
+                <code className="rounded bg-ink/5 px-1">*.apps.googleusercontent.com</code>
+              </li>
+              <li>
+                <code className="rounded bg-ink/5 px-1">AUTH_GOOGLE_SECRET</code> —{" "}
+                <code className="rounded bg-ink/5 px-1">GOCSPX-…</code>
+              </li>
+              <li>
+                <code className="rounded bg-ink/5 px-1">AUTH_SECRET</code> — 긴 임의 문자열
+              </li>
+              <li>
+                <code className="rounded bg-ink/5 px-1">AUTH_URL</code> — 지금 사이트 주소
+                (예: <code className="rounded bg-ink/5 px-1">https://mytube.vercel.app</code>)
+              </li>
+              <li>
+                <code className="rounded bg-ink/5 px-1">DATABASE_URL</code> — Neon 연결 문자열
+              </li>
+            </ul>
+            <p className="mt-3 text-xs leading-relaxed text-ink/55">
+              Google Cloud OAuth 리디렉션 URI에도{" "}
+              <code className="rounded bg-ink/5 px-1">
+                https://내주소.vercel.app/api/auth/callback/google
+              </code>
+              를 추가한 뒤, 환경 변수 저장 후 <strong>Redeploy</strong> 하세요.
             </p>
             <p className="mt-3 text-xs text-ink/45">
               UI만 먼저 보려면{" "}
