@@ -89,6 +89,10 @@ Storage → **Create Database** → **Postgres** → 프로젝트에 연결
 `AUTH_URL`을 `http://`로 넣으면 Google `redirect_uri_mismatch`가 납니다.  
 Production / Preview에 모두 넣는 것을 권장합니다.
 
+**중요:** `DATABASE_URL`은 런타임뿐 아니라 **Build**에도 필요합니다.  
+(`prisma migrate deploy`가 빌드 중 실행됨) Vercel 환경 변수에서 Build 체크가 꺼져 있으면  
+`datasource.url property is required` 오류로 배포가 실패합니다.
+
 ### 5) 빌드 설정
 저장소의 `vercel.json`과 `npm run build`에 이미 포함됨:
 
