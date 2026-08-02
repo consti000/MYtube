@@ -1,4 +1,4 @@
-import type { Adapter, AdapterAccount } from "next-auth/adapters";
+import type { Adapter, AdapterAccount, AdapterUser } from "next-auth/adapters";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 
@@ -35,12 +35,40 @@ export function createAuthAdapter(): Adapter {
   const base = PrismaAdapter(prisma);
   return {
     ...base,
+    async createUser(data) {
+      try {
+        const user = await prisma.user.create({
+          data: {
+            name: typeof data.name === "string" ? data.name : undefined,
+            email: typeof data.email === "string" ? data.email : undefined,
+            emailVerified:
+              data.emailVerified instanceof Date ? data.emailVerified : undefined,
+            image: typeof data.image === "string" ? data.image : undefined,
+          },
+        });
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email ?? "",
+          emailVerified: user.emailVerified,
+          image: user.image,
+        } satisfies AdapterUser;
+      } catch (err) {
+        console.error("[auth] createUser failed", err);
+        throw err;
+      }
+    },
     async linkAccount(data) {
-      const sanitized = toPrismaAccount(
-        data as AdapterAccount & Record<string, unknown>,
-      );
-      await base.linkAccount!(sanitized);
-      return sanitized;
+      try {
+        const sanitized = toPrismaAccount(
+          data as AdapterAccount & Record<string, unknown>,
+        );
+        await base.linkAccount!(sanitized);
+        return sanitized;
+      } catch (err) {
+        console.error("[auth] linkAccount failed", err);
+        throw err;
+      }
     },
   };
 }

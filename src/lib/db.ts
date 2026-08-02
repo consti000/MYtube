@@ -2,22 +2,37 @@ import { PrismaClient } from "@/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-function isNeonUrl(url: string) {
+function resolveDatabaseUrl() {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    ""
+  );
+}
+
+function isNeonConnection(url: string) {
+  const host = process.env.PGHOST ?? process.env.POSTGRES_HOST ?? "";
   return (
     url.includes("neon.tech") ||
     url.includes("neon.technology") ||
+    host.includes("neon") ||
+    Boolean(process.env.NEON_PROJECT_ID) ||
     process.env.PRISMA_ADAPTER === "neon"
   );
 }
 
 function createPrisma() {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = resolveDatabaseUrl();
   if (!connectionString) {
-    throw new Error("DATABASE_URL is not set");
+    throw new Error(
+      "DATABASE_URL is not set (also checked POSTGRES_PRISMA_URL / POSTGRES_URL)",
+    );
   }
 
-  // Vercel Postgres / Neon → HTTP adapter (서버리스)
-  if (isNeonUrl(connectionString)) {
+  // Neon(Vercel Storage 포함) → HTTP 어댑터 (서버리스에서 TCP Pool보다 안정적)
+  if (isNeonConnection(connectionString)) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { PrismaNeonHttp } = require("@prisma/adapter-neon") as typeof import("@prisma/adapter-neon");
     const adapter = new PrismaNeonHttp(connectionString, { fullResults: true });
