@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ── Auth.js ──────────────────────────────────────────────
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  syncInterval  Int       @default(60) // minutes: 30 | 60 | 180
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  folders  Folder[]
+  channels Channel[]
+  links    Link[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ── Domain ───────────────────────────────────────────────
+model Folder {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channels FolderChannel[]
+  links    FolderLink[]
+
+  @@index([userId])
+}
+
+model Channel {
+  id                String   @id @default(cuid())
+  userId            String
+  platform          String   @default("youtube")
+  externalChannelId String
+  name              String
+  thumbnailUrl      String?
+  uploadsPlaylistId String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folders FolderChannel[]
+  videos  VideoCache[]
+
+  @@unique([userId, externalChannelId])
+  @@index([userId])
+}
+
+model FolderChannel {
+  id        String @id @default(cuid())
+  folderId  String
+  channelId String
+  order     Int    @default(0)
+
+  folder  Folder  @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([folderId, channelId])
+}
+
+model Link {
+  id        String   @id @default(cuid())
+  userId    String
+  platform  String // "x" | "facebook"
+  name      String
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folders FolderLink[]
+
+  @@index([userId])
+}
+
+model FolderLink {
+  id       String @id @default(cuid())
+  folderId String
+  linkId   String
+  order    Int    @default(0)
+
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  link   Link   @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@unique([folderId, linkId])
+}
+
+model VideoCache {
+  id           String   @id @default(cuid())
+  channelId    String
+  videoId      String
+  title        String
+  thumbnailUrl String?
+  publishedAt  DateTime
+  syncedAt     DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, videoId])
+  @@index([channelId, publishedAt])
+}
