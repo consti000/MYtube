@@ -53,6 +53,27 @@ export async function getYouTubeAccessToken(userId: string): Promise<string> {
   return refreshAccessToken(userId, decryptToken(account.refresh_token));
 }
 
+class YouTubeApiError extends Error {
+  status: number;
+  path: string;
+  body: string;
+
+  constructor(path: string, status: number, body: string) {
+    super(`YouTube API ${path} failed: ${status} ${body}`);
+    this.name = "YouTubeApiError";
+    this.path = path;
+    this.status = status;
+    this.body = body;
+  }
+
+  get isPlaylistNotFound() {
+    return (
+      this.path === "playlistItems" &&
+      (this.status === 404 || this.body.includes("playlistNotFound"))
+    );
+  }
+}
+
 async function ytGet<T>(
   accessToken: string,
   path: string,
@@ -65,7 +86,7 @@ async function ytGet<T>(
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`YouTube API ${path} failed: ${res.status} ${body}`);
+    throw new YouTubeApiError(path, res.status, body);
   }
   return res.json() as Promise<T>;
 }
@@ -159,67 +180,212 @@ export async function syncSubscriptions(userId: string) {
   return { channelCount: channelIds.length };
 }
 
-/** Cache latest videos for a user's channels (quota-friendly via uploads playlist). */
-export async function syncVideoCache(userId: string, perChannel = 5) {
-  const token = await getYouTubeAccessToken(userId);
-  const channels = await prisma.channel.findMany({
-    where: { userId, platform: "youtube" },
+async function resolveUploadsPlaylistId(
+  token: string,
+  channel: { id: string; externalChannelId: string },
+): Promise<string | null> {
+  const list = await ytGet<ChannelList>(token, "channels", {
+    part: "contentDetails",
+    id: channel.externalChannelId,
   });
+  const playlistId =
+    list.items?.[0]?.contentDetails?.relatedPlaylists?.uploads ?? null;
+  await prisma.channel.update({
+    where: { id: channel.id },
+    data: { uploadsPlaylistId: playlistId },
+  });
+  return playlistId;
+}
 
-  let synced = 0;
-  for (const channel of channels) {
-    let playlistId: string | null = channel.uploadsPlaylistId;
-    if (!playlistId) {
-      const list = await ytGet<ChannelList>(token, "channels", {
-        part: "contentDetails",
-        id: channel.externalChannelId,
+/** 누락된 uploads playlist ID를 최대 50개씩 일괄 조회 */
+async function fillMissingPlaylistIds(
+  token: string,
+  userId: string,
+  channels: Array<{ id: string; externalChannelId: string; uploadsPlaylistId: string | null }>,
+) {
+  const missing = channels.filter((c) => !c.uploadsPlaylistId);
+  for (let i = 0; i < missing.length; i += 50) {
+    const batch = missing.slice(i, i + 50);
+    const list = await ytGet<ChannelList>(token, "channels", {
+      part: "contentDetails",
+      id: batch.map((c) => c.externalChannelId).join(","),
+    });
+    for (const ch of list.items ?? []) {
+      const uploads = ch.contentDetails?.relatedPlaylists?.uploads ?? null;
+      if (!ch.id) continue;
+      await prisma.channel.updateMany({
+        where: { userId, externalChannelId: ch.id },
+        data: { uploadsPlaylistId: uploads },
       });
-      playlistId =
-        list.items?.[0]?.contentDetails?.relatedPlaylists?.uploads ?? null;
-      if (playlistId) {
-        await prisma.channel.update({
-          where: { id: channel.id },
-          data: { uploadsPlaylistId: playlistId },
-        });
-      }
+      const local = batch.find((c) => c.externalChannelId === ch.id);
+      if (local) local.uploadsPlaylistId = uploads;
     }
-    if (!playlistId) continue;
+  }
+}
 
-    const page = await ytGet<PlaylistItems>(token, "playlistItems", {
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  async function run() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await worker(items[i]);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => run()),
+  );
+  return results;
+}
+
+type SyncChannel = {
+  id: string;
+  name: string;
+  externalChannelId: string;
+  uploadsPlaylistId: string | null;
+};
+
+async function syncOneChannelVideos(
+  token: string,
+  channel: SyncChannel,
+  perChannel: number,
+): Promise<{ synced: number; skipped: boolean }> {
+  let playlistId = channel.uploadsPlaylistId;
+  if (!playlistId) {
+    playlistId = await resolveUploadsPlaylistId(token, channel);
+  }
+  if (!playlistId) return { synced: 0, skipped: true };
+
+  let page: PlaylistItems;
+  try {
+    page = await ytGet<PlaylistItems>(token, "playlistItems", {
       part: "snippet",
       playlistId,
       maxResults: String(perChannel),
     });
-
-    for (const item of page.items ?? []) {
-      const videoId = item.snippet?.resourceId?.videoId;
-      const title = item.snippet?.title;
-      const publishedAt = item.snippet?.publishedAt;
-      if (!videoId || !title || !publishedAt) continue;
-      const thumb =
-        item.snippet?.thumbnails?.medium?.url ??
-        item.snippet?.thumbnails?.high?.url;
-      await prisma.videoCache.upsert({
-        where: {
-          channelId_videoId: { channelId: channel.id, videoId },
-        },
-        create: {
-          channelId: channel.id,
-          videoId,
-          title,
-          thumbnailUrl: thumb,
-          publishedAt: new Date(publishedAt),
-        },
-        update: {
-          title,
-          thumbnailUrl: thumb,
-          publishedAt: new Date(publishedAt),
-          syncedAt: new Date(),
-        },
+  } catch (err) {
+    if (!(err instanceof YouTubeApiError) || !err.isPlaylistNotFound) throw err;
+    playlistId = await resolveUploadsPlaylistId(token, channel);
+    if (!playlistId) return { synced: 0, skipped: true };
+    try {
+      page = await ytGet<PlaylistItems>(token, "playlistItems", {
+        part: "snippet",
+        playlistId,
+        maxResults: String(perChannel),
       });
-      synced += 1;
+    } catch (retryErr) {
+      if (
+        retryErr instanceof YouTubeApiError &&
+        retryErr.isPlaylistNotFound
+      ) {
+        await prisma.channel.update({
+          where: { id: channel.id },
+          data: { uploadsPlaylistId: null },
+        });
+        return { synced: 0, skipped: true };
+      }
+      throw retryErr;
     }
   }
 
-  return { videoCount: synced, channelCount: channels.length };
+  const rows = (page.items ?? [])
+    .map((item) => {
+      const videoId = item.snippet?.resourceId?.videoId;
+      const title = item.snippet?.title;
+      const publishedAt = item.snippet?.publishedAt;
+      if (!videoId || !title || !publishedAt) return null;
+      return {
+        channelId: channel.id,
+        videoId,
+        title,
+        thumbnailUrl:
+          item.snippet?.thumbnails?.medium?.url ??
+          item.snippet?.thumbnails?.high?.url ??
+          null,
+        publishedAt: new Date(publishedAt),
+        syncedAt: new Date(),
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  if (!rows.length) return { synced: 0, skipped: false };
+
+  await prisma.$transaction(
+    rows.map((row) =>
+      prisma.videoCache.upsert({
+        where: {
+          channelId_videoId: {
+            channelId: row.channelId,
+            videoId: row.videoId,
+          },
+        },
+        create: row,
+        update: {
+          title: row.title,
+          thumbnailUrl: row.thumbnailUrl,
+          publishedAt: row.publishedAt,
+          syncedAt: row.syncedAt,
+        },
+      }),
+    ),
+  );
+
+  return { synced: rows.length, skipped: false };
+}
+
+/**
+ * Cache latest videos.
+ * 기본: 숨기지 않았고 폴더에 1개 이상 배정된 채널만 (속도·할당량 절약)
+ * assignedOnly=false 이면 전체 구독 채널
+ */
+export async function syncVideoCache(
+  userId: string,
+  perChannel = 5,
+  options?: { assignedOnly?: boolean; concurrency?: number },
+) {
+  const assignedOnly = options?.assignedOnly ?? true;
+  const concurrency = options?.concurrency ?? 6;
+
+  const token = await getYouTubeAccessToken(userId);
+  const channels = await prisma.channel.findMany({
+    where: {
+      userId,
+      platform: "youtube",
+      hidden: false,
+      ...(assignedOnly ? { folders: { some: {} } } : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      externalChannelId: true,
+      uploadsPlaylistId: true,
+    },
+  });
+
+  await fillMissingPlaylistIds(token, userId, channels);
+
+  const outcomes = await mapPool(channels, concurrency, async (channel) => {
+    try {
+      return await syncOneChannelVideos(token, channel, perChannel);
+    } catch (err) {
+      console.warn(
+        `[youtube] skip channel ${channel.name}:`,
+        err instanceof Error ? err.message : err,
+      );
+      return { synced: 0, skipped: true };
+    }
+  });
+
+  const videoCount = outcomes.reduce((sum, o) => sum + o.synced, 0);
+  const skippedCount = outcomes.filter((o) => o.skipped).length;
+
+  return {
+    videoCount,
+    channelCount: channels.length,
+    skippedCount,
+  };
 }

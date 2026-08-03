@@ -58,9 +58,13 @@ export function SettingsClient({
     }
     setMessage(
       mode === "videos"
-        ? `영상 캐시 ${data.videoCount ?? 0}건 갱신`
+        ? `영상 캐시 ${data.videoCount ?? 0}건 · 대상 채널 ${data.channelCount ?? 0}${
+            data.skippedCount ? ` · 건너뜀 ${data.skippedCount}` : ""
+          }`
         : mode === "all"
-          ? `채널 ${data.channelCount ?? 0} · 영상 ${data.videoCount ?? 0} 동기화`
+          ? `구독 ${data.channelCount ?? 0} · 영상 ${data.videoCount ?? 0}${
+              data.skippedCount ? ` · 건너뜀 ${data.skippedCount}` : ""
+            }`
           : `구독 채널 ${data.channelCount ?? 0}개 동기화`,
     );
     router.refresh();
@@ -124,6 +128,10 @@ export function SettingsClient({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/45">
           지금 동기화
         </h2>
+        <p className="mt-2 text-sm text-ink/55">
+          영상 캐시는 폴더에 배정된 채널만 대상으로 하며, 여러 채널을 동시에
+          가져옵니다.
+        </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
