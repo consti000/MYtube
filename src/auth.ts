@@ -11,6 +11,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   secret: process.env.AUTH_SECRET,
   adapter: createAuthAdapter(),
+  callbacks: {
+    ...authConfig.callbacks,
+    async jwt({ token, user, account }) {
+      // DB User.id 를 JWT에 고정 (Google sub와 섞이면 폴더/채널이 유실된 것처럼 보임)
+      if (user?.id) {
+        token.sub = user.id;
+        return token;
+      }
+      if (account?.provider && account.providerAccountId) {
+        const linked = await prisma.account.findUnique({
+          where: {
+            provider_providerAccountId: {
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+            },
+          },
+          select: { userId: true },
+        });
+        if (linked?.userId) {
+          token.sub = linked.userId;
+        }
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
+      }
+      return session;
+    },
+  },
   events: {
     async linkAccount({ account }) {
       try {
@@ -38,7 +69,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           data,
         });
       } catch (err) {
-        // 암호화 실패로 로그인 전체를 깨지 않음 (토큰은 평문 저장 상태 유지)
         console.error("[auth] linkAccount token encrypt failed", err);
       }
     },

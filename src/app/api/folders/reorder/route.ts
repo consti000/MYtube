@@ -25,14 +25,13 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Invalid folder ids" }, { status: 400 });
   }
 
-  await prisma.$transaction(
-    parsed.data.folderIds.map((id, index) =>
-      prisma.folder.update({
-        where: { id },
-        data: { order: index },
-      }),
-    ),
-  );
+  // Neon HTTP 어댑터는 $transaction 미지원 → 순차 update
+  for (let index = 0; index < parsed.data.folderIds.length; index++) {
+    await prisma.folder.update({
+      where: { id: parsed.data.folderIds[index] },
+      data: { order: index },
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

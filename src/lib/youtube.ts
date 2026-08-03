@@ -314,25 +314,24 @@ async function syncOneChannelVideos(
 
   if (!rows.length) return { synced: 0, skipped: false };
 
-  await prisma.$transaction(
-    rows.map((row) =>
-      prisma.videoCache.upsert({
-        where: {
-          channelId_videoId: {
-            channelId: row.channelId,
-            videoId: row.videoId,
-          },
+  // Neon HTTP 어댑터는 $transaction 미지원 → 순차 upsert
+  for (const row of rows) {
+    await prisma.videoCache.upsert({
+      where: {
+        channelId_videoId: {
+          channelId: row.channelId,
+          videoId: row.videoId,
         },
-        create: row,
-        update: {
-          title: row.title,
-          thumbnailUrl: row.thumbnailUrl,
-          publishedAt: row.publishedAt,
-          syncedAt: row.syncedAt,
-        },
-      }),
-    ),
-  );
+      },
+      create: row,
+      update: {
+        title: row.title,
+        thumbnailUrl: row.thumbnailUrl,
+        publishedAt: row.publishedAt,
+        syncedAt: row.syncedAt,
+      },
+    });
+  }
 
   return { synced: rows.length, skipped: false };
 }

@@ -38,6 +38,7 @@ export function FolderManageClient({
   const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
+  const [assignError, setAssignError] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
 
   const visibleChannels = channels.filter((ch) => !ch.hidden);
@@ -76,6 +77,7 @@ export function FolderManageClient({
     if (!targets.length) return;
 
     setSelectedChannelIds(targetIds);
+    setAssignError(null);
 
     if (targets.length === 1) {
       setSelectedFolders(targets[0].folders.map((f) => f.folder.id));
@@ -163,31 +165,48 @@ export function FolderManageClient({
   async function saveAssign() {
     if (!selectedChannelIds.length) return;
     setBusy(true);
-    const res = await fetch("/api/channels/assign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        channelIds: selectedChannelIds,
-        folderIds: selectedFolders,
-      }),
-    });
-    setBusy(false);
-    if (!res.ok) return;
+    setAssignError(null);
+    try {
+      const res = await fetch("/api/channels/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channelIds: selectedChannelIds,
+          folderIds: selectedFolders,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string | { formErrors?: string[] };
+      };
+      if (!res.ok) {
+        const msg =
+          typeof data.error === "string"
+            ? data.error
+            : data.error?.formErrors?.[0] ??
+              `배정 저장 실패 (${res.status})`;
+        setAssignError(msg);
+        return;
+      }
 
-    const assignedFolders = folders
-      .filter((f) => selectedFolders.includes(f.id))
-      .map((f) => ({ folder: { id: f.id, name: f.name } }));
+      const assignedFolders = folders
+        .filter((f) => selectedFolders.includes(f.id))
+        .map((f) => ({ folder: { id: f.id, name: f.name } }));
 
-    setChannels((prev) =>
-      prev.map((ch) =>
-        selectedChannelIds.includes(ch.id)
-          ? { ...ch, folders: assignedFolders }
-          : ch,
-      ),
-    );
-    setAssignOpen(false);
-    setSelectedChannelIds([]);
-    router.refresh();
+      setChannels((prev) =>
+        prev.map((ch) =>
+          selectedChannelIds.includes(ch.id)
+            ? { ...ch, folders: assignedFolders }
+            : ch,
+        ),
+      );
+      setAssignOpen(false);
+      setSelectedChannelIds([]);
+      router.refresh();
+    } catch {
+      setAssignError("네트워크 오류로 배정에 실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -263,18 +282,6 @@ export function FolderManageClient({
             {showHidden ? "숨긴 유튜브 채널" : "유튜브 채널 배정"}
           </h2>
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowHidden((v) => !v);
-                setSelectedChannelIds([]);
-              }}
-              className="rounded-md border border-ink/15 px-2.5 py-1 text-xs text-ink/70 hover:border-ink/30"
-            >
-              {showHidden
-                ? `배정 목록 (${visibleChannels.length})`
-                : `숨긴 채널 ${hiddenChannels.length}`}
-            </button>
             {listChannels.length > 0 ? (
               <>
                 <button
@@ -319,6 +326,18 @@ export function FolderManageClient({
                 )}
               </>
             ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setShowHidden((v) => !v);
+                setSelectedChannelIds([]);
+              }}
+              className="rounded-md border border-ink/15 px-2.5 py-1 text-xs text-ink/70 hover:border-ink/30"
+            >
+              {showHidden
+                ? `배정 목록 (${visibleChannels.length})`
+                : `숨긴 채널 ${hiddenChannels.length}`}
+            </button>
           </div>
         </div>
 
@@ -467,10 +486,16 @@ export function FolderManageClient({
                 );
               })}
             </ul>
+            {assignError ? (
+              <p className="mt-3 text-xs text-crimson">{assignError}</p>
+            ) : null}
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setAssignOpen(false)}
+                onClick={() => {
+                  setAssignOpen(false);
+                  setAssignError(null);
+                }}
                 className="rounded-lg px-3 py-1.5 text-sm text-ink/60"
               >
                 취소

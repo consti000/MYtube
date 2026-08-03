@@ -37,6 +37,7 @@ export async function POST(req: Request) {
   const channelIds = parsed.data.channelIds?.length
     ? parsed.data.channelIds
     : [parsed.data.channelId!];
+  const { folderIds } = parsed.data;
 
   const channels = await prisma.channel.findMany({
     where: { userId: authz.userId, id: { in: channelIds } },
@@ -46,24 +47,28 @@ export async function POST(req: Request) {
   }
 
   const folders = await prisma.folder.findMany({
-    where: { userId: authz.userId, id: { in: parsed.data.folderIds } },
+    where: { userId: authz.userId, id: { in: folderIds } },
   });
-  if (folders.length !== parsed.data.folderIds.length) {
+  if (folders.length !== folderIds.length) {
     return NextResponse.json({ error: "Invalid folder ids" }, { status: 400 });
   }
 
-  await prisma.$transaction([
-    prisma.folderChannel.deleteMany({
-      where: { channelId: { in: channelIds } },
-    }),
-    ...channelIds.flatMap((channelId) =>
-      parsed.data.folderIds.map((folderId, index) =>
-        prisma.folderChannel.create({
-          data: { folderId, channelId, order: index },
-        }),
+  // Neon HTTP 어댑터는 $transaction 미지원 → 순차 실행
+  await prisma.folderChannel.deleteMany({
+    where: { channelId: { in: channelIds } },
+  });
+
+  if (folderIds.length > 0) {
+    await prisma.folderChannel.createMany({
+      data: channelIds.flatMap((channelId) =>
+        folderIds.map((folderId, index) => ({
+          folderId,
+          channelId,
+          order: index,
+        })),
       ),
-    ),
-  ]);
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }
