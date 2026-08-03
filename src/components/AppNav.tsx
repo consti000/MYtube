@@ -48,6 +48,16 @@ export function AppNav({ email, youtubeConnected = true }: Props) {
         >
           설정
         </Link>
+        <Link
+          href="/memos"
+          className={`text-[13px] ${
+            pathname === "/memos" || pathname.startsWith("/memos/")
+              ? "font-semibold text-ink"
+              : "font-normal text-ink/45"
+          }`}
+        >
+          메모장
+        </Link>
         <div className="ml-auto flex items-center gap-3">
           {youtubeConnected ? (
             <span className="hidden rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 sm:inline">

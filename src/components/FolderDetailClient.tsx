@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { YouTubePlayer } from "@/components/YouTubePlayer";
 import { AddLinkModal } from "@/components/AddLinkModal";
+import { VideoMemoBox } from "@/components/VideoMemoBox";
 
 export type FolderListItem = { id: string; name: string; count?: number };
 export type VideoItem = {
@@ -79,20 +80,24 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
   const [playingId, setPlayingId] = useState<string | null>(
     sortedVideos[0]?.id ?? null,
   );
-  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"add" | "edit">("add");
 
   const playing = sortedVideos.find((v) => v.id === playingId) ?? null;
-  const selectedLink = links.find((l) => l.id === selectedLinkId) ?? null;
 
   function selectVideo(id: string) {
     setPlayingId(id);
-    setSelectedLinkId(null);
   }
 
-  function selectLink(id: string) {
-    setSelectedLinkId(id);
-    setPlayingId(null);
+  function openAddModal() {
+    setModalMode("add");
+    setModalOpen(true);
+  }
+
+  function openEditModal() {
+    if (!links.length) return;
+    setModalMode("edit");
+    setModalOpen(true);
   }
 
   function playNext() {
@@ -228,13 +233,23 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
                 저장해 둔 페이지 URL — 클릭 시 새 탭
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setModalOpen(true)}
-              className="rounded-lg bg-ink px-2.5 py-1 text-[11px] font-medium text-paper hover:bg-ink/85"
-            >
-              + 링크 추가
-            </button>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={openAddModal}
+                className="rounded-lg bg-ink px-2.5 py-1 text-[11px] font-medium text-paper hover:bg-ink/85"
+              >
+                + 링크 추가
+              </button>
+              <button
+                type="button"
+                onClick={openEditModal}
+                disabled={!links.length}
+                className="rounded-lg border border-ink/15 bg-paper px-2.5 py-1 text-[11px] font-medium text-ink/70 hover:border-ink/30 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                링크 수정
+              </button>
+            </div>
           </div>
           {links.length === 0 ? (
             <div className="rounded-lg border border-dashed border-ink/15 bg-ink/[0.02] px-3 py-3 text-xs text-ink/50">
@@ -244,17 +259,13 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
           ) : (
             links.map((s) => {
               const platform = s.platform === "facebook" ? "facebook" : "x";
-              const selected = selectedLinkId === s.id;
               return (
-                <button
+                <a
                   key={s.id}
-                  type="button"
-                  onClick={() => selectLink(s.id)}
-                  className={`flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition ${
-                    selected
-                      ? "border-crimson bg-crimson/[0.06]"
-                      : "border-ink/15 bg-paper hover:border-ink/25"
-                  }`}
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex w-full items-center gap-2.5 rounded-lg border border-ink/15 bg-paper px-3 py-2.5 text-left transition hover:border-ink/25"
                 >
                   <PlatformMark platform={platform} />
                   <span className="min-w-0 flex-1">
@@ -268,44 +279,16 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
                   <span className="shrink-0 text-[11px] font-semibold text-crimson">
                     열기 →
                   </span>
-                </button>
+                </a>
               );
             })
           )}
         </section>
       </main>
 
-      {/* Right: player / link panel */}
+      {/* Right: player */}
       <aside className="bg-ink/[0.02] p-3.5">
-        {selectedLink ? (
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-ink">외부 링크</p>
-            <div className="rounded-lg border border-ink/15 bg-paper p-3.5">
-              <div className="mb-2.5 flex items-center gap-2">
-                <PlatformMark
-                  platform={
-                    selectedLink.platform === "facebook" ? "facebook" : "x"
-                  }
-                />
-                <p className="font-semibold text-ink">{selectedLink.name}</p>
-              </div>
-              <p className="break-all text-xs text-ink/55">{selectedLink.url}</p>
-              <a
-                href={selectedLink.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3.5 flex w-full items-center justify-center rounded-lg bg-crimson px-3 py-2 text-sm font-medium text-paper hover:bg-crimson/90"
-              >
-                {selectedLink.platform === "facebook"
-                  ? "Facebook에서 열기"
-                  : "X에서 열기"}
-              </a>
-              <p className="mt-2.5 text-[11px] text-ink/40">
-                인앱 재생 없음 · 원본 사이트로 이동합니다
-              </p>
-            </div>
-          </div>
-        ) : playing ? (
+        {playing ? (
           <div className="space-y-3">
             <p className="text-xs font-semibold text-ink">재생 패널</p>
             <YouTubePlayer videoId={playing.videoId} title={playing.title} />
@@ -332,9 +315,10 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
                 원본
               </a>
             </div>
+            <VideoMemoBox videoId={playing.videoId} videoTitle={playing.title} />
           </div>
         ) : (
-          <p className="text-xs text-ink/40">영상 또는 링크를 선택하세요</p>
+          <p className="text-xs text-ink/40">영상을 선택하세요</p>
         )}
       </aside>
 
@@ -343,6 +327,8 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
         onClose={() => setModalOpen(false)}
         folders={folders}
         defaultFolderId={folder.id}
+        mode={modalMode}
+        links={links}
       />
     </div>
   );

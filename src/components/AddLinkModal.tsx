@@ -6,15 +6,35 @@ import { X } from "lucide-react";
 
 type FolderOption = { id: string; name: string };
 
+export type EditableLink = {
+  id: string;
+  platform: "x" | "facebook" | string;
+  name: string;
+  url: string;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
   folders: FolderOption[];
   defaultFolderId?: string;
+  /** add: 새 링크 / edit: 기존 링크 수정 */
+  mode?: "add" | "edit";
+  /** edit 모드에서 선택할 수 있는 링크 목록 */
+  links?: EditableLink[];
 };
 
-export function AddLinkModal({ open, onClose, folders, defaultFolderId }: Props) {
+export function AddLinkModal({
+  open,
+  onClose,
+  folders,
+  defaultFolderId,
+  mode = "add",
+  links = [],
+}: Props) {
   const router = useRouter();
+  const isEdit = mode === "edit";
+  const [editLinkId, setEditLinkId] = useState("");
   const [platform, setPlatform] = useState<"x" | "facebook">("x");
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -23,32 +43,55 @@ export function AddLinkModal({ open, onClose, folders, defaultFolderId }: Props)
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    setError(null);
+    if (isEdit && links.length) {
+      const first = links[0];
+      setEditLinkId(first.id);
+      setPlatform(first.platform === "facebook" ? "facebook" : "x");
+      setName(first.name);
+      setUrl(first.url);
+      setFolderId(defaultFolderId ?? folders[0]?.id ?? "");
+    } else {
+      setEditLinkId("");
       setPlatform("x");
       setName("");
       setUrl("");
       setFolderId(defaultFolderId ?? folders[0]?.id ?? "");
-      setError(null);
     }
-  }, [open, defaultFolderId, folders]);
+  }, [open, isEdit, links, defaultFolderId, folders]);
+
+  function applyLink(id: string) {
+    const link = links.find((l) => l.id === id);
+    if (!link) return;
+    setEditLinkId(id);
+    setPlatform(link.platform === "facebook" ? "facebook" : "x");
+    setName(link.name);
+    setUrl(link.url);
+  }
 
   if (!open) return null;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isEdit && !editLinkId) return;
     setPending(true);
     setError(null);
     try {
-      const res = await fetch("/api/links", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          platform,
-          name,
-          url,
-          folderIds: [folderId],
-        }),
-      });
+      const body = {
+        platform,
+        name,
+        url,
+        folderIds: [folderId],
+      };
+      const res = await fetch(
+        isEdit ? `/api/links/${editLinkId}` : "/api/links",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
       const data = await res.json();
       if (!res.ok) {
         const msg =
@@ -78,7 +121,9 @@ export function AddLinkModal({ open, onClose, folders, defaultFolderId }: Props)
       />
       <div className="relative w-full max-w-md rounded-2xl border border-ink/10 bg-paper p-6 shadow-xl">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="font-display text-xl text-ink">링크 추가</h2>
+          <h2 className="font-display text-xl text-ink">
+            {isEdit ? "링크 수정" : "링크 추가"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -89,6 +134,26 @@ export function AddLinkModal({ open, onClose, folders, defaultFolderId }: Props)
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4">
+          {isEdit ? (
+            <label className="block space-y-1.5">
+              <span className="text-xs font-medium uppercase tracking-wide text-ink/50">
+                수정할 링크
+              </span>
+              <select
+                required
+                value={editLinkId}
+                onChange={(e) => applyLink(e.target.value)}
+                className="w-full rounded-lg border border-ink/15 bg-white px-3 py-2 text-sm outline-none ring-crimson/30 focus:ring-2"
+              >
+                {links.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name} ({l.platform === "facebook" ? "Facebook" : "X"})
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink/50">
               플랫폼
@@ -172,10 +237,10 @@ export function AddLinkModal({ open, onClose, folders, defaultFolderId }: Props)
             </button>
             <button
               type="submit"
-              disabled={pending || !folderId}
+              disabled={pending || !folderId || (isEdit && !editLinkId)}
               className="rounded-lg bg-crimson px-4 py-2 text-sm font-medium text-paper hover:bg-crimson/90 disabled:opacity-50"
             >
-              {pending ? "저장 중…" : "추가"}
+              {pending ? "저장 중…" : isEdit ? "수정 저장" : "추가"}
             </button>
           </div>
         </form>
