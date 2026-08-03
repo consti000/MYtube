@@ -84,6 +84,8 @@ model Channel {
   name              String
   thumbnailUrl      String?
   uploadsPlaylistId String?
+  /** 배정 목록에서만 숨김 (삭제 아님, 동기화 후에도 유지) */
+  hidden            Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

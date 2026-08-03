@@ -16,7 +16,13 @@ export default async function FoldersPage() {
     prisma.channel.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      include: { folders: { include: { folder: true } } },
+      select: {
+        id: true,
+        name: true,
+        thumbnailUrl: true,
+        hidden: true,
+        folders: { include: { folder: { select: { id: true, name: true } } } },
+      },
     }),
   ]);
 
