@@ -17,13 +17,59 @@ type Props = {
   channels: Channel[];
 };
 
-export function FolderManageClient({ initialFolders, channels }: Props) {
+function folderLabel(ch: Channel) {
+  if (!ch.folders.length) return "폴더 배정";
+  const names = ch.folders.map((f) => f.folder.name);
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]}, ${names[1]}`;
+  return `${names[0]} 외 ${names.length - 1}`;
+}
+
+export function FolderManageClient({ initialFolders, channels: initialChannels }: Props) {
   const router = useRouter();
   const [folders, setFolders] = useState(initialFolders);
+  const [channels, setChannels] = useState(initialChannels);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [assignChannel, setAssignChannel] = useState<string | null>(null);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
+
+  const selectedChannels = channels.filter((ch) =>
+    selectedChannelIds.includes(ch.id),
+  );
+
+  function toggleChannel(id: string) {
+    setSelectedChannelIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
+  function toggleAllChannels() {
+    if (selectedChannelIds.length === channels.length) {
+      setSelectedChannelIds([]);
+    } else {
+      setSelectedChannelIds(channels.map((ch) => ch.id));
+    }
+  }
+
+  function openAssignForChannels(targetIds: string[]) {
+    const targets = channels.filter((ch) => targetIds.includes(ch.id));
+    if (!targets.length) return;
+
+    setSelectedChannelIds(targetIds);
+
+    if (targets.length === 1) {
+      setSelectedFolders(targets[0].folders.map((f) => f.folder.id));
+    } else {
+      const first = new Set(targets[0].folders.map((f) => f.folder.id));
+      const shared = [...first].filter((fid) =>
+        targets.every((ch) => ch.folders.some((f) => f.folder.id === fid)),
+      );
+      setSelectedFolders(shared);
+    }
+    setAssignOpen(true);
+  }
 
   async function createFolder(e: React.FormEvent) {
     e.preventDefault();
@@ -47,6 +93,12 @@ export function FolderManageClient({ initialFolders, channels }: Props) {
     if (!confirm("이 폴더를 삭제할까요?")) return;
     await fetch(`/api/folders/${id}`, { method: "DELETE" });
     setFolders((prev) => prev.filter((f) => f.id !== id));
+    setChannels((prev) =>
+      prev.map((ch) => ({
+        ...ch,
+        folders: ch.folders.filter((f) => f.folder.id !== id),
+      })),
+    );
     router.refresh();
   }
 
@@ -59,29 +111,49 @@ export function FolderManageClient({ initialFolders, channels }: Props) {
       body: JSON.stringify({ name: next }),
     });
     setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name: next } : f)));
+    setChannels((prev) =>
+      prev.map((ch) => ({
+        ...ch,
+        folders: ch.folders.map((f) =>
+          f.folder.id === id ? { folder: { id, name: next } } : f,
+        ),
+      })),
+    );
     router.refresh();
   }
 
-  function openAssign(ch: Channel) {
-    setAssignChannel(ch.id);
-    setSelectedFolders(ch.folders.map((f) => f.folder.id));
-  }
-
   async function saveAssign() {
-    if (!assignChannel) return;
+    if (!selectedChannelIds.length) return;
     setBusy(true);
-    await fetch("/api/channels/assign", {
+    const res = await fetch("/api/channels/assign", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channelId: assignChannel, folderIds: selectedFolders }),
+      body: JSON.stringify({
+        channelIds: selectedChannelIds,
+        folderIds: selectedFolders,
+      }),
     });
     setBusy(false);
-    setAssignChannel(null);
+    if (!res.ok) return;
+
+    const assignedFolders = folders
+      .filter((f) => selectedFolders.includes(f.id))
+      .map((f) => ({ folder: { id: f.id, name: f.name } }));
+
+    setChannels((prev) =>
+      prev.map((ch) =>
+        selectedChannelIds.includes(ch.id)
+          ? { ...ch, folders: assignedFolders }
+          : ch,
+      ),
+    );
+    setAssignOpen(false);
+    setSelectedChannelIds([]);
     router.refresh();
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-10 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-5xl space-y-10 overflow-x-hidden px-4 py-8 sm:px-6">
       <div>
         <h1 className="font-display text-3xl font-semibold text-ink">폴더 관리</h1>
         <p className="mt-2 text-sm text-ink/55">
@@ -148,62 +220,118 @@ export function FolderManageClient({ initialFolders, channels }: Props) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/45">
-          유튜브 채널 배정
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/45">
+            유튜브 채널 배정
+          </h2>
+          {channels.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleAllChannels}
+                className="rounded-md border border-ink/15 px-2.5 py-1 text-xs text-ink/70 hover:border-ink/30"
+              >
+                {selectedChannelIds.length === channels.length
+                  ? "전체 해제"
+                  : "전체 선택"}
+              </button>
+              <button
+                type="button"
+                disabled={selectedChannelIds.length === 0}
+                onClick={() => openAssignForChannels(selectedChannelIds)}
+                className="rounded-md bg-ink px-2.5 py-1 text-xs font-medium text-paper hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                선택 {selectedChannelIds.length}개 폴더 배정
+              </button>
+            </div>
+          ) : null}
+        </div>
+
         {channels.length === 0 ? (
           <p className="text-sm text-ink/45">
             동기화된 채널이 없습니다. 설정에서 구독 목록을 불러오세요.
           </p>
         ) : (
           <ul className="space-y-2">
-            {channels.map((ch) => (
-              <li
-                key={ch.id}
-                className="flex items-center gap-3 rounded-xl border border-ink/10 bg-paper px-3 py-2"
-              >
-                {ch.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={ch.thumbnailUrl}
-                    alt=""
-                    className="h-10 w-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-10 w-10 rounded-full bg-ink/10" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-ink">{ch.name}</p>
-                  <p className="truncate text-xs text-ink/45">
-                    {ch.folders.length
-                      ? ch.folders.map((f) => f.folder.name).join(", ")
-                      : "미배정"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => openAssign(ch)}
-                  className="rounded-lg border border-ink/15 px-3 py-1.5 text-xs font-medium text-ink/70 hover:border-ink/30"
+            {channels.map((ch) => {
+              const checked = selectedChannelIds.includes(ch.id);
+              const label = folderLabel(ch);
+              const assigned = ch.folders.length > 0;
+              return (
+                <li
+                  key={ch.id}
+                  className={`flex items-center gap-3 rounded-xl border bg-paper px-3 py-2 ${
+                    checked ? "border-crimson/40 bg-crimson/[0.03]" : "border-ink/10"
+                  }`}
                 >
-                  폴더 배정
-                </button>
-              </li>
-            ))}
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleChannel(ch.id)}
+                    aria-label={`${ch.name} 선택`}
+                    className="h-4 w-4 shrink-0 accent-crimson"
+                  />
+                  {ch.thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={ch.thumbnailUrl}
+                      alt=""
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-ink/10" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-ink">{ch.name}</p>
+                    <p className="truncate text-xs text-ink/45">
+                      {assigned
+                        ? ch.folders.map((f) => f.folder.name).join(", ")
+                        : "미배정"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openAssignForChannels([ch.id])}
+                    title={
+                      assigned
+                        ? ch.folders.map((f) => f.folder.name).join(", ")
+                        : "폴더 배정"
+                    }
+                    className={`max-w-[9.5rem] truncate rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                      assigned
+                        ? "border-crimson/30 bg-crimson/5 text-crimson"
+                        : "border-ink/15 text-ink/70 hover:border-ink/30"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
 
-      {assignChannel ? (
+      {assignOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
             type="button"
             className="absolute inset-0 bg-ink/50"
             aria-label="닫기"
-            onClick={() => setAssignChannel(null)}
+            onClick={() => setAssignOpen(false)}
           />
           <div className="relative w-full max-w-sm rounded-2xl bg-paper p-5 shadow-xl">
             <h3 className="font-display text-lg text-ink">폴더에 배정</h3>
-            <p className="mt-1 text-xs text-ink/50">여러 폴더를 선택할 수 있습니다.</p>
+            <p className="mt-1 text-xs text-ink/50">
+              {selectedChannels.length > 1
+                ? `선택한 ${selectedChannels.length}개 채널에 동일하게 적용됩니다. (기존 배정 교체)`
+                : "여러 폴더를 선택할 수 있습니다."}
+            </p>
+            {selectedChannels.length > 1 ? (
+              <p className="mt-2 line-clamp-2 text-xs text-ink/40">
+                {selectedChannels.map((ch) => ch.name).join(", ")}
+              </p>
+            ) : null}
             <ul className="mt-4 max-h-64 space-y-2 overflow-auto">
               {folders.map((f) => {
                 const checked = selectedFolders.includes(f.id);
@@ -230,7 +358,7 @@ export function FolderManageClient({ initialFolders, channels }: Props) {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setAssignChannel(null)}
+                onClick={() => setAssignOpen(false)}
                 className="rounded-lg px-3 py-1.5 text-sm text-ink/60"
               >
                 취소

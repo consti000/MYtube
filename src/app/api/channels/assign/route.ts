@@ -3,12 +3,28 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { z } from "zod";
 
-const assignSchema = z.object({
-  channelId: z.string(),
-  folderIds: z.array(z.string()),
-});
+const assignSchema = z
+  .object({
+    channelId: z.string().optional(),
+    channelIds: z.array(z.string()).optional(),
+    folderIds: z.array(z.string()),
+  })
+  .superRefine((data, ctx) => {
+    const ids = data.channelIds?.length
+      ? data.channelIds
+      : data.channelId
+        ? [data.channelId]
+        : [];
+    if (!ids.length) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["channelIds"],
+        message: "channelId or channelIds required",
+      });
+    }
+  });
 
-/** Replace folder membership for a YouTube channel (many-to-many). */
+/** Replace folder membership for one or more YouTube channels. */
 export async function POST(req: Request) {
   const authz = await requireUser();
   if ("error" in authz) return authz.error;
@@ -18,10 +34,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const channel = await prisma.channel.findFirst({
-    where: { id: parsed.data.channelId, userId: authz.userId },
+  const channelIds = parsed.data.channelIds?.length
+    ? parsed.data.channelIds
+    : [parsed.data.channelId!];
+
+  const channels = await prisma.channel.findMany({
+    where: { userId: authz.userId, id: { in: channelIds } },
   });
-  if (!channel) {
+  if (channels.length !== channelIds.length) {
     return NextResponse.json({ error: "Channel not found" }, { status: 404 });
   }
 
@@ -33,11 +53,15 @@ export async function POST(req: Request) {
   }
 
   await prisma.$transaction([
-    prisma.folderChannel.deleteMany({ where: { channelId: channel.id } }),
-    ...parsed.data.folderIds.map((folderId, index) =>
-      prisma.folderChannel.create({
-        data: { folderId, channelId: channel.id, order: index },
-      }),
+    prisma.folderChannel.deleteMany({
+      where: { channelId: { in: channelIds } },
+    }),
+    ...channelIds.flatMap((channelId) =>
+      parsed.data.folderIds.map((folderId, index) =>
+        prisma.folderChannel.create({
+          data: { folderId, channelId, order: index },
+        }),
+      ),
     ),
   ]);
 

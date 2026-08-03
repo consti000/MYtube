@@ -2,6 +2,10 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { AppNav } from "@/components/AppNav";
+import {
+  DashboardFoldersClient,
+  type DashboardFolderCard,
+} from "@/components/DashboardFoldersClient";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -24,10 +28,26 @@ export default async function DashboardPage() {
     },
   });
 
+  const cards: DashboardFolderCard[] = folders.map((folder) => {
+    const previews = folder.channels
+      .flatMap((fc) => fc.channel.videos)
+      .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+      .slice(0, 4)
+      .map((v) => ({ id: v.id, thumbnailUrl: v.thumbnailUrl }));
+
+    return {
+      id: folder.id,
+      name: folder.name,
+      channelCount: folder._count.channels,
+      linkCount: folder._count.links,
+      previews,
+    };
+  });
+
   return (
     <>
       <AppNav email={session?.user?.email} />
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <main className="mx-auto max-w-7xl overflow-x-hidden px-4 py-8 sm:px-6">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl font-semibold text-ink sm:text-4xl">
@@ -53,7 +73,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {folders.length === 0 ? (
+        {cards.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-ink/20 px-6 py-16 text-center">
             <p className="font-display text-xl text-ink">아직 폴더가 없습니다</p>
             <p className="mt-2 text-sm text-ink/50">
@@ -67,63 +87,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="flex gap-5 overflow-x-auto pb-4">
-            {folders.map((folder) => {
-              const previews = folder.channels
-                .flatMap((fc) =>
-                  fc.channel.videos.map((v) => ({
-                    ...v,
-                    channelName: fc.channel.name,
-                  })),
-                )
-                .sort(
-                  (a, b) => b.publishedAt.getTime() - a.publishedAt.getTime(),
-                )
-                .slice(0, 4);
-
-              return (
-                <Link
-                  key={folder.id}
-                  href={`/folders/${folder.id}`}
-                  className="w-[280px] shrink-0 rounded-2xl border border-ink/10 bg-paper p-4 transition hover:border-crimson/35 hover:shadow-md sm:w-[300px]"
-                >
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <h2 className="font-display text-lg font-semibold text-ink">
-                      {folder.name}
-                    </h2>
-                    <span className="text-[11px] text-ink/40">
-                      YT {folder._count.channels} · 링크 {folder._count.links}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {previews.length === 0 ? (
-                      <p className="col-span-2 py-8 text-center text-xs text-ink/40">
-                        미리볼 영상 없음
-                      </p>
-                    ) : (
-                      previews.map((v) => (
-                        <div
-                          key={v.id}
-                          className="overflow-hidden rounded-lg bg-ink/5"
-                        >
-                          <div className="aspect-video">
-                            {v.thumbnailUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={v.thumbnailUrl}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            ) : null}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <DashboardFoldersClient initialFolders={cards} />
         )}
       </main>
     </>
