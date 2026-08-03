@@ -1,8 +1,8 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import ws from "ws";
 
-/** 어댑터 전략 변경 시 올려서 HMR/핫리로드에 남은 구 클라이언트를 버림 */
-const PRISMA_ADAPTER_REV = 2;
+/** 어댑터/스키마 변경 시 올려서 HMR에 남은 구 클라이언트를 버림 */
+const PRISMA_ADAPTER_REV = 3;
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
