@@ -1,6 +1,13 @@
 import { PrismaClient } from "@/generated/prisma/client";
+import ws from "ws";
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+/** 어댑터 전략 변경 시 올려서 HMR/핫리로드에 남은 구 클라이언트를 버림 */
+const PRISMA_ADAPTER_REV = 2;
+
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+  prismaAdapterRev?: number;
+};
 
 function resolveDatabaseUrl() {
   return (
@@ -31,11 +38,14 @@ function createPrisma() {
     );
   }
 
-  // Neon(Vercel Storage 포함) → HTTP 어댑터 (서버리스에서 TCP Pool보다 안정적)
+  // Neon → WebSocket 어댑터 (HTTP 모드는 createMany/updateMany/$transaction 미지원)
   if (isNeonConnection(connectionString)) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaNeonHttp } = require("@prisma/adapter-neon") as typeof import("@prisma/adapter-neon");
-    const adapter = new PrismaNeonHttp(connectionString, { fullResults: true });
+    const { neonConfig } = require("@neondatabase/serverless") as typeof import("@neondatabase/serverless");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PrismaNeon } = require("@prisma/adapter-neon") as typeof import("@prisma/adapter-neon");
+    neonConfig.webSocketConstructor = ws;
+    const adapter = new PrismaNeon({ connectionString });
     return new PrismaClient({ adapter });
   }
 
@@ -53,6 +63,11 @@ function createPrisma() {
         : undefined,
   });
   return new PrismaClient({ adapter: new PrismaPg(pool) });
+}
+
+if (globalForPrisma.prismaAdapterRev !== PRISMA_ADAPTER_REV) {
+  globalForPrisma.prisma = undefined;
+  globalForPrisma.prismaAdapterRev = PRISMA_ADAPTER_REV;
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrisma();

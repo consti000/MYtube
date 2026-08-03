@@ -170,8 +170,10 @@ export async function syncSubscriptions(userId: string) {
     for (const ch of list.items ?? []) {
       const uploads = ch.contentDetails?.relatedPlaylists?.uploads;
       if (!ch.id || !uploads) continue;
-      await prisma.channel.updateMany({
-        where: { userId, externalChannelId: ch.id },
+      await prisma.channel.update({
+        where: {
+          userId_externalChannelId: { userId, externalChannelId: ch.id },
+        },
         data: { uploadsPlaylistId: uploads },
       });
     }
@@ -213,8 +215,10 @@ async function fillMissingPlaylistIds(
     for (const ch of list.items ?? []) {
       const uploads = ch.contentDetails?.relatedPlaylists?.uploads ?? null;
       if (!ch.id) continue;
-      await prisma.channel.updateMany({
-        where: { userId, externalChannelId: ch.id },
+      await prisma.channel.update({
+        where: {
+          userId_externalChannelId: { userId, externalChannelId: ch.id },
+        },
         data: { uploadsPlaylistId: uploads },
       });
       const local = batch.find((c) => c.externalChannelId === ch.id);

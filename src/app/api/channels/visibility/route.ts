@@ -18,17 +18,24 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const result = await prisma.channel.updateMany({
+  const owned = await prisma.channel.findMany({
     where: {
       userId: authz.userId,
       id: { in: parsed.data.channelIds },
     },
-    data: { hidden: parsed.data.hidden },
+    select: { id: true },
   });
-
-  if (result.count === 0) {
+  if (!owned.length) {
     return NextResponse.json({ error: "Channel not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, count: result.count });
+  // updateMany는 Neon HTTP에서 내부 트랜잭션 오류가 나므로 개별 update
+  for (const ch of owned) {
+    await prisma.channel.update({
+      where: { id: ch.id },
+      data: { hidden: parsed.data.hidden },
+    });
+  }
+
+  return NextResponse.json({ ok: true, count: owned.length });
 }
