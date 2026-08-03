@@ -103,7 +103,7 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col md:grid md:grid-cols-[200px_minmax(0,1fr)_300px]">
+    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col md:grid md:grid-cols-[200px_minmax(0,1fr)_600px]">
       {/* Left: folders */}
       <aside className="hidden border-r border-ink/10 bg-ink/[0.02] p-3 md:block">
         <p className="text-xs font-semibold text-ink/50">주제 폴더</p>
