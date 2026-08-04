@@ -81,6 +81,7 @@ Storage → **Create Database** → **Postgres** → 프로젝트에 연결
 | Key | Value |
 |-----|--------|
 | `DATABASE_URL` | Postgres / Neon 연결 문자열 (`sslmode=require` 권장) |
+| `DIRECT_URL` (선택) | Neon **Direct / non-pooling** URL. migrate 안정화용 |
 | `AUTH_SECRET` | 긴 임의 문자열 |
 | `AUTH_GOOGLE_ID` | Google OAuth 클라이언트 ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth 시크릿 |
@@ -93,14 +94,17 @@ Production / Preview에 모두 넣는 것을 권장합니다.
 (`prisma migrate deploy`가 빌드 중 실행됨) Vercel 환경 변수에서 Build 체크가 꺼져 있으면  
 `datasource.url property is required` 오류로 배포가 실패합니다.
 
+**Neon P1002 (advisory lock timeout):**  
+`-pooler` 호스트로 migrate하면 잠금을 못 잡아 빌드가 실패합니다.  
+Neon Console에서 **Direct connection** 문자열을 `DIRECT_URL`(또는 `POSTGRES_URL_NON_POOLING`)로 넣고 Build에도 체크하세요.  
+빌드 스크립트가 pooler URL을 감지하면 자동으로 direct 호스트로도 변환합니다.
+
 ### 5) 빌드 설정
 `vercel.json`은 `npm run build`를 호출하고, 실제 빌드는 `scripts/vercel-build.mjs`에서 수행합니다.
 
 - `prisma generate`
-- `prisma migrate deploy` (**P1002 advisory lock timeout 시 최대 3회 재시도**)
+- `prisma migrate deploy` (direct URL + P1001/P1002 시 최대 5회 재시도)
 - `next build`
-
-동시 배포로 잠금 경합이 생겨도 자동 재시도로 실패율을 줄입니다.
 
 ### 6) 배포
 **Deploy** 클릭 → 빌드 성공 확인 → 상단 도메인 복사  
