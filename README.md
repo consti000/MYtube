@@ -94,11 +94,13 @@ Production / Preview에 모두 넣는 것을 권장합니다.
 `datasource.url property is required` 오류로 배포가 실패합니다.
 
 ### 5) 빌드 설정
-저장소의 `vercel.json`과 `npm run build`에 이미 포함됨:
+`vercel.json`은 `npm run build`를 호출하고, 실제 빌드는 `scripts/vercel-build.mjs`에서 수행합니다.
 
-`prisma generate && prisma migrate deploy && next build`
+- `prisma generate`
+- `prisma migrate deploy` (**P1002 advisory lock timeout 시 최대 3회 재시도**)
+- `next build`
 
-Deploy 시 테이블이 자동 생성·갱신됩니다.
+동시 배포로 잠금 경합이 생겨도 자동 재시도로 실패율을 줄입니다.
 
 ### 6) 배포
 **Deploy** 클릭 → 빌드 성공 확인 → 상단 도메인 복사  
