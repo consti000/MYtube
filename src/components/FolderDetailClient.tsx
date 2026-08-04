@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { YouTubePlayer } from "@/components/YouTubePlayer";
 import { AddLinkModal } from "@/components/AddLinkModal";
 import { BulkLinkUploadModal } from "@/components/BulkLinkUploadModal";
@@ -75,6 +76,7 @@ function PlatformMark({ platform }: { platform: "youtube" | "x" | "facebook" }) 
 }
 
 export function FolderDetailClient({ folder, folders, videos, links }: Props) {
+  const router = useRouter();
   const sortedVideos = useMemo(
     () =>
       [...videos].sort(
@@ -90,6 +92,9 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [linkDeleteMode, setLinkDeleteMode] = useState(false);
+  const [selectedLinkIds, setSelectedLinkIds] = useState<string[]>([]);
+  const [linkBusy, setLinkBusy] = useState(false);
   const playerPanelRef = useRef<HTMLElement>(null);
   const videoListTopRef = useRef<HTMLElement>(null);
 
@@ -132,6 +137,55 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
 
   function openBulkModal() {
     setBulkOpen(true);
+  }
+
+  function enterLinkDeleteMode() {
+    if (!links.length) return;
+    setLinkDeleteMode(true);
+    setSelectedLinkIds([]);
+  }
+
+  function exitLinkDeleteMode() {
+    setLinkDeleteMode(false);
+    setSelectedLinkIds([]);
+  }
+
+  function toggleLinkSelection(id: string) {
+    setSelectedLinkIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
+  function toggleAllLinks() {
+    if (selectedLinkIds.length === links.length) {
+      setSelectedLinkIds([]);
+    } else {
+      setSelectedLinkIds(links.map((l) => l.id));
+    }
+  }
+
+  async function deleteSelectedLinks() {
+    if (!selectedLinkIds.length) return;
+    if (!confirm(`선택한 ${selectedLinkIds.length}개 링크를 삭제할까요?`)) {
+      return;
+    }
+    setLinkBusy(true);
+    try {
+      const results = await Promise.all(
+        selectedLinkIds.map((id) =>
+          fetch(`/api/links/${id}`, { method: "DELETE" }),
+        ),
+      );
+      if (results.some((r) => !r.ok)) {
+        alert("일부 링크 삭제에 실패했습니다. 다시 시도해 주세요.");
+      }
+      exitLinkDeleteMode();
+      router.refresh();
+    } catch {
+      alert("네트워크 오류로 삭제하지 못했습니다.");
+    } finally {
+      setLinkBusy(false);
+    }
   }
 
   function playNext() {
@@ -279,27 +333,75 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
               <button
                 type="button"
                 onClick={openAddModal}
-                className="rounded-lg bg-ink px-2.5 py-1 text-[11px] font-medium text-paper hover:bg-ink/85"
+                disabled={linkDeleteMode}
+                className="rounded-lg bg-ink px-2.5 py-1 text-[11px] font-medium text-paper hover:bg-ink/85 disabled:opacity-40"
               >
                 + 링크 추가
               </button>
               <button
                 type="button"
                 onClick={openBulkModal}
-                className="rounded-lg border border-ink/15 bg-paper px-2.5 py-1 text-[11px] font-medium text-ink/70 hover:border-ink/30 hover:text-ink"
+                disabled={linkDeleteMode}
+                className="rounded-lg border border-ink/15 bg-paper px-2.5 py-1 text-[11px] font-medium text-ink/70 hover:border-ink/30 hover:text-ink disabled:opacity-40"
               >
                 일괄 업로드
               </button>
               <button
                 type="button"
                 onClick={openEditModal}
-                disabled={!links.length}
+                disabled={!links.length || linkDeleteMode}
                 className="rounded-lg border border-ink/15 bg-paper px-2.5 py-1 text-[11px] font-medium text-ink/70 hover:border-ink/30 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
               >
                 링크 수정
               </button>
+              {linkDeleteMode ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={toggleAllLinks}
+                    disabled={linkBusy || !links.length}
+                    className="rounded-lg border border-ink/15 bg-paper px-2.5 py-1 text-[11px] font-medium text-ink/70 hover:border-ink/30 disabled:opacity-40"
+                  >
+                    {selectedLinkIds.length === links.length
+                      ? "전체 해제"
+                      : "전체 선택"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deleteSelectedLinks}
+                    disabled={linkBusy || selectedLinkIds.length === 0}
+                    className="rounded-lg border border-crimson/40 bg-crimson/5 px-2.5 py-1 text-[11px] font-medium text-crimson hover:bg-crimson/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {linkBusy
+                      ? "삭제 중…"
+                      : `선택 ${selectedLinkIds.length}개 삭제`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={exitLinkDeleteMode}
+                    disabled={linkBusy}
+                    className="rounded-lg px-2.5 py-1 text-[11px] font-medium text-ink/55 hover:bg-ink/5 disabled:opacity-40"
+                  >
+                    취소
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={enterLinkDeleteMode}
+                  disabled={!links.length}
+                  className="rounded-lg border border-crimson/30 bg-paper px-2.5 py-1 text-[11px] font-medium text-crimson hover:bg-crimson/5 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  삭제
+                </button>
+              )}
             </div>
           </div>
+          {linkDeleteMode ? (
+            <p className="text-[11px] text-ink/45">
+              삭제할 링크를 선택한 뒤 「선택 삭제」를 눌러 주세요.
+            </p>
+          ) : null}
           {links.length === 0 ? (
             <div className="rounded-lg border border-dashed border-ink/15 bg-ink/[0.02] px-3 py-3 text-xs text-ink/50">
               이 폴더에 등록된 X/Facebook 링크가 없습니다. 링크 추가에서 URL을
@@ -308,6 +410,36 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
           ) : (
             links.map((s) => {
               const platform = s.platform === "facebook" ? "facebook" : "x";
+              const checked = selectedLinkIds.includes(s.id);
+              if (linkDeleteMode) {
+                return (
+                  <label
+                    key={s.id}
+                    className={`flex w-full cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition ${
+                      checked
+                        ? "border-crimson/40 bg-crimson/[0.06]"
+                        : "border-ink/15 bg-paper hover:border-ink/25"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleLinkSelection(s.id)}
+                      className="h-4 w-4 shrink-0 accent-crimson"
+                      aria-label={`${s.name} 선택`}
+                    />
+                    <PlatformMark platform={platform} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-semibold text-ink">
+                        {s.name}
+                      </span>
+                      <span className="block truncate text-[11px] text-ink/40">
+                        {handleFromUrl(s.url, platform)}
+                      </span>
+                    </span>
+                  </label>
+                );
+              }
               return (
                 <a
                   key={s.id}
