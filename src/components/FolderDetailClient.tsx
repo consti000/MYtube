@@ -9,6 +9,7 @@ import { BulkLinkUploadModal } from "@/components/BulkLinkUploadModal";
 import { VideoMemoBox } from "@/components/VideoMemoBox";
 import { AiShortcutLinks } from "@/components/AiShortcutLinks";
 import { CopyVideoUrlButton } from "@/components/CopyVideoUrlButton";
+import { SortableFolderLinks } from "@/components/SortableFolderLinks";
 import {
   FOLDER_VIDEO_LIMIT,
   FOLDER_VIDEO_MAX_AGE_MONTHS,
@@ -53,17 +54,6 @@ function formatWhen(date: string | Date) {
   const d = Math.floor(h / 24);
   if (d === 1) return "어제";
   return `${d}일 전`;
-}
-
-function handleFromUrl(url: string, platform: string) {
-  try {
-    const u = new URL(url);
-    const seg = u.pathname.replace(/^\/+/, "").split("/")[0] || u.hostname;
-    if (platform === "x") return seg.startsWith("@") ? seg : `@${seg}`;
-    return `${u.hostname.replace(/^www\./, "")}/${seg}`;
-  } catch {
-    return url;
-  }
 }
 
 function PlatformMark({ platform }: { platform: "youtube" | "x" | "facebook" }) {
@@ -401,69 +391,18 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
             <p className="text-[11px] text-ink/45">
               삭제할 링크를 선택한 뒤 「선택 삭제」를 눌러 주세요.
             </p>
+          ) : links.length > 0 ? (
+            <p className="text-[11px] text-ink/45">
+              왼쪽 손잡이 아이콘을 드래그하면 순서를 바꿀 수 있습니다.
+            </p>
           ) : null}
-          {links.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-ink/15 bg-ink/[0.02] px-3 py-3 text-xs text-ink/50">
-              이 폴더에 등록된 X/Facebook 링크가 없습니다. 링크 추가에서 URL을
-              등록하세요.
-            </div>
-          ) : (
-            links.map((s) => {
-              const platform = s.platform === "facebook" ? "facebook" : "x";
-              const checked = selectedLinkIds.includes(s.id);
-              if (linkDeleteMode) {
-                return (
-                  <label
-                    key={s.id}
-                    className={`flex w-full cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition ${
-                      checked
-                        ? "border-crimson/40 bg-crimson/[0.06]"
-                        : "border-ink/15 bg-paper hover:border-ink/25"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleLinkSelection(s.id)}
-                      className="h-4 w-4 shrink-0 accent-crimson"
-                      aria-label={`${s.name} 선택`}
-                    />
-                    <PlatformMark platform={platform} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-semibold text-ink">
-                        {s.name}
-                      </span>
-                      <span className="block truncate text-[11px] text-ink/40">
-                        {handleFromUrl(s.url, platform)}
-                      </span>
-                    </span>
-                  </label>
-                );
-              }
-              return (
-                <a
-                  key={s.id}
-                  href={s.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex w-full items-center gap-2.5 rounded-lg border border-ink/15 bg-paper px-3 py-2.5 text-left transition hover:border-ink/25"
-                >
-                  <PlatformMark platform={platform} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-semibold text-ink">
-                      {s.name}
-                    </span>
-                    <span className="block truncate text-[11px] text-ink/40">
-                      {handleFromUrl(s.url, platform)}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[11px] font-semibold text-crimson">
-                    열기 →
-                  </span>
-                </a>
-              );
-            })
-          )}
+          <SortableFolderLinks
+            folderId={folder.id}
+            links={links}
+            deleteMode={linkDeleteMode}
+            selectedLinkIds={selectedLinkIds}
+            onToggleLink={toggleLinkSelection}
+          />
         </section>
       </main>
 
