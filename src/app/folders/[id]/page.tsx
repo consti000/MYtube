@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import {
+  FOLDER_VIDEO_LIMIT,
+  folderVideoSince,
+} from "@/lib/videos";
 import { AppNav } from "@/components/AppNav";
 import { FolderDetailClient } from "@/components/FolderDetailClient";
 
@@ -17,11 +21,7 @@ export default async function FolderDetailPage({ params }: Props) {
       include: {
         channels: {
           include: {
-            channel: {
-              include: {
-                videos: { orderBy: { publishedAt: "desc" }, take: 10 },
-              },
-            },
+            channel: { select: { id: true, name: true } },
           },
         },
         links: { include: { link: true }, orderBy: { order: "asc" } },
@@ -40,21 +40,39 @@ export default async function FolderDetailPage({ params }: Props) {
 
   if (!folder) notFound();
 
-  const videos = folder.channels
-    .flatMap((fc) =>
-      fc.channel.videos.map((v) => ({
-        id: v.id,
-        videoId: v.videoId,
-        title: v.title,
-        thumbnailUrl: v.thumbnailUrl,
-        publishedAt: v.publishedAt.toISOString(),
-        channelName: fc.channel.name,
-      })),
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-    );
+  const channelIds = folder.channels.map((fc) => fc.channel.id);
+  const channelNameById = new Map(
+    folder.channels.map((fc) => [fc.channel.id, fc.channel.name]),
+  );
+
+  const recentVideos =
+    channelIds.length === 0
+      ? []
+      : await prisma.videoCache.findMany({
+          where: {
+            channelId: { in: channelIds },
+            publishedAt: { gte: folderVideoSince() },
+          },
+          orderBy: { publishedAt: "desc" },
+          take: FOLDER_VIDEO_LIMIT,
+          select: {
+            id: true,
+            videoId: true,
+            title: true,
+            thumbnailUrl: true,
+            publishedAt: true,
+            channelId: true,
+          },
+        });
+
+  const videos = recentVideos.map((v) => ({
+    id: v.id,
+    videoId: v.videoId,
+    title: v.title,
+    thumbnailUrl: v.thumbnailUrl,
+    publishedAt: v.publishedAt.toISOString(),
+    channelName: channelNameById.get(v.channelId) ?? "",
+  }));
 
   const folderList = folders.map((f) => ({
     id: f.id,

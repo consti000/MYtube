@@ -4,7 +4,13 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { YouTubePlayer } from "@/components/YouTubePlayer";
 import { AddLinkModal } from "@/components/AddLinkModal";
+import { BulkLinkUploadModal } from "@/components/BulkLinkUploadModal";
 import { VideoMemoBox } from "@/components/VideoMemoBox";
+import { VideoSummaryBox } from "@/components/VideoSummaryBox";
+import {
+  FOLDER_VIDEO_LIMIT,
+  FOLDER_VIDEO_MAX_AGE_MONTHS,
+} from "@/lib/videos";
 
 export type FolderListItem = { id: string; name: string; count?: number };
 export type VideoItem = {
@@ -82,7 +88,9 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
+  const [bulkOpen, setBulkOpen] = useState(false);
   const playerPanelRef = useRef<HTMLElement>(null);
+  const videoListTopRef = useRef<HTMLElement>(null);
 
   const playing = sortedVideos.find((v) => v.id === playingId) ?? null;
 
@@ -90,6 +98,15 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
     // 목록 아래/옆 재생 패널로 이동 (좁은 화면에서 특히 유용)
     requestAnimationFrame(() => {
       playerPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
+  function scrollToVideoListTop() {
+    requestAnimationFrame(() => {
+      videoListTopRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
@@ -110,6 +127,10 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
     if (!links.length) return;
     setModalMode("edit");
     setModalOpen(true);
+  }
+
+  function openBulkModal() {
+    setBulkOpen(true);
   }
 
   function playNext() {
@@ -161,7 +182,11 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
           <div>
             <h1 className="text-[15px] font-semibold text-ink">{folder.name}</h1>
             <p className="text-xs text-ink/45">
-              YouTube {sortedVideos.length} · X/FB 링크 {links.length}
+              YouTube {sortedVideos.length}
+              {sortedVideos.length >= FOLDER_VIDEO_LIMIT
+                ? ` (최대 ${FOLDER_VIDEO_LIMIT}·최근 ${FOLDER_VIDEO_MAX_AGE_MONTHS}개월)`
+                : ` · 최근 ${FOLDER_VIDEO_MAX_AGE_MONTHS}개월`}{" "}
+              · X/FB 링크 {links.length}
             </p>
           </div>
           <div className="flex gap-2">
@@ -181,7 +206,11 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
         </div>
 
         {/* YouTube rows */}
-        <section className="mb-4 space-y-2">
+        <section
+          ref={videoListTopRef}
+          id="youtube-video-list"
+          className="mb-4 scroll-mt-14 space-y-2"
+        >
           <div className="mb-2 flex items-center gap-2">
             <h2 className="text-xs font-semibold text-ink">YouTube 영상</h2>
             <span className="text-xs text-ink/40">클릭 시 우측에서 바로 재생</span>
@@ -255,6 +284,13 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
               </button>
               <button
                 type="button"
+                onClick={openBulkModal}
+                className="rounded-lg border border-ink/15 bg-paper px-2.5 py-1 text-[11px] font-medium text-ink/70 hover:border-ink/30 hover:text-ink"
+              >
+                일괄 업로드
+              </button>
+              <button
+                type="button"
                 onClick={openEditModal}
                 disabled={!links.length}
                 className="rounded-lg border border-ink/15 bg-paper px-2.5 py-1 text-[11px] font-medium text-ink/70 hover:border-ink/30 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
@@ -306,7 +342,16 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
       >
         {playing ? (
           <div className="space-y-3">
-            <p className="text-xs font-semibold text-ink">재생 패널</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-ink">재생 패널</p>
+              <button
+                type="button"
+                onClick={scrollToVideoListTop}
+                className="rounded-lg border border-ink/15 px-2.5 py-1 text-[11px] font-medium text-ink/65 hover:border-ink/30 hover:text-ink"
+              >
+                맨위로
+              </button>
+            </div>
             <YouTubePlayer videoId={playing.videoId} title={playing.title} />
             <div>
               <p className="font-semibold text-ink">{playing.title}</p>
@@ -332,9 +377,26 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
               </a>
             </div>
             <VideoMemoBox videoId={playing.videoId} videoTitle={playing.title} />
+            <VideoSummaryBox
+              videoId={playing.videoId}
+              videoTitle={playing.title}
+              channelName={playing.channelName}
+            />
           </div>
         ) : (
-          <p className="text-xs text-ink/40">영상을 선택하세요</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-ink">재생 패널</p>
+              <button
+                type="button"
+                onClick={scrollToVideoListTop}
+                className="rounded-lg border border-ink/15 px-2.5 py-1 text-[11px] font-medium text-ink/65 hover:border-ink/30 hover:text-ink"
+              >
+                맨위로
+              </button>
+            </div>
+            <p className="text-xs text-ink/40">영상을 선택하세요</p>
+          </div>
         )}
       </aside>
 
@@ -345,6 +407,12 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
         defaultFolderId={folder.id}
         mode={modalMode}
         links={links}
+      />
+      <BulkLinkUploadModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        folders={folders}
+        defaultFolderId={folder.id}
       />
     </div>
   );

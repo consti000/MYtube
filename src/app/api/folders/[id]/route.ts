@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { folderInputSchema } from "@/lib/validators";
+import {
+  FOLDER_VIDEO_LIMIT,
+  folderVideoSince,
+} from "@/lib/videos";
 import { z } from "zod";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -17,11 +21,7 @@ export async function GET(_req: Request, ctx: Ctx) {
       channels: {
         orderBy: { order: "asc" },
         include: {
-          channel: {
-            include: {
-              videos: { orderBy: { publishedAt: "desc" }, take: 8 },
-            },
-          },
+          channel: { select: { id: true, name: true, thumbnailUrl: true } },
         },
       },
       links: {
@@ -35,15 +35,31 @@ export async function GET(_req: Request, ctx: Ctx) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const videos = folder.channels
-    .flatMap((fc) =>
-      fc.channel.videos.map((v) => ({
-        ...v,
-        channelName: fc.channel.name,
-        channelThumbnail: fc.channel.thumbnailUrl,
-      })),
-    )
-    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+  const channelIds = folder.channels.map((fc) => fc.channel.id);
+  const channelById = new Map(
+    folder.channels.map((fc) => [fc.channel.id, fc.channel]),
+  );
+
+  const recentVideos =
+    channelIds.length === 0
+      ? []
+      : await prisma.videoCache.findMany({
+          where: {
+            channelId: { in: channelIds },
+            publishedAt: { gte: folderVideoSince() },
+          },
+          orderBy: { publishedAt: "desc" },
+          take: FOLDER_VIDEO_LIMIT,
+        });
+
+  const videos = recentVideos.map((v) => {
+    const channel = channelById.get(v.channelId);
+    return {
+      ...v,
+      channelName: channel?.name ?? "",
+      channelThumbnail: channel?.thumbnailUrl ?? null,
+    };
+  });
 
   return NextResponse.json({
     ...folder,
