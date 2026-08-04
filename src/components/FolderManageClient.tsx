@@ -26,6 +26,23 @@ function folderLabel(ch: Channel) {
   return `${names[0]} 외 ${names.length - 1}`;
 }
 
+/** 정렬용: 배정된 폴더명 중 가나다순 첫 이름 (미배정·숨김만은 맨 뒤) */
+function primaryFolderName(ch: Channel) {
+  if (!ch.folders.length) return "\uffff";
+  return [...ch.folders.map((f) => f.folder.name)].sort((a, b) =>
+    a.localeCompare(b, "ko"),
+  )[0];
+}
+
+function compareRegistered(a: Channel, b: Channel) {
+  const byFolder = primaryFolderName(a).localeCompare(
+    primaryFolderName(b),
+    "ko",
+  );
+  if (byFolder !== 0) return byFolder;
+  return a.name.localeCompare(b.name, "ko");
+}
+
 export function FolderManageClient({
   initialFolders,
   channels: initialChannels,
@@ -39,14 +56,21 @@ export function FolderManageClient({
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [assignError, setAssignError] = useState<string | null>(null);
-  const [showHidden, setShowHidden] = useState(false);
 
-  const visibleChannels = channels.filter((ch) => !ch.hidden);
-  const hiddenChannels = channels.filter((ch) => ch.hidden);
-  const listChannels = showHidden ? hiddenChannels : visibleChannels;
+  /** 폴더 배정 또는 숨기기를 한 채널 — 폴더명 → 채널명 순 */
+  const registeredChannels = channels
+    .filter((ch) => ch.hidden || ch.folders.length > 0)
+    .sort(compareRegistered);
+  /** 아직 배정·숨기기 하지 않은 채널 */
+  const unregisteredChannels = channels.filter(
+    (ch) => !ch.hidden && ch.folders.length === 0,
+  );
 
-  const selectedInList = selectedChannelIds.filter((id) =>
-    listChannels.some((ch) => ch.id === id),
+  const selectedVisible = selectedChannelIds.filter((id) =>
+    channels.some((ch) => ch.id === id && !ch.hidden),
+  );
+  const selectedHidden = selectedChannelIds.filter((id) =>
+    channels.some((ch) => ch.id === id && ch.hidden),
   );
 
   const selectedChannels = channels.filter((ch) =>
@@ -59,8 +83,8 @@ export function FolderManageClient({
     );
   }
 
-  function toggleAllInList() {
-    const ids = listChannels.map((ch) => ch.id);
+  function toggleAllInGroup(group: Channel[]) {
+    const ids = group.map((ch) => ch.id);
     const allSelected =
       ids.length > 0 && ids.every((id) => selectedChannelIds.includes(id));
     if (allSelected) {
@@ -209,6 +233,124 @@ export function FolderManageClient({
     }
   }
 
+  function renderChannelRow(ch: Channel) {
+    const checked = selectedChannelIds.includes(ch.id);
+    const label = folderLabel(ch);
+    const assigned = ch.folders.length > 0;
+    return (
+      <li
+        key={ch.id}
+        className={`flex items-center gap-3 rounded-xl border bg-paper px-3 py-2 ${
+          checked ? "border-crimson/40 bg-crimson/[0.03]" : "border-ink/10"
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={() => toggleChannel(ch.id)}
+          aria-label={`${ch.name} 선택`}
+          className="h-4 w-4 shrink-0 accent-crimson"
+        />
+        {ch.thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={ch.thumbnailUrl}
+            alt=""
+            className="h-10 w-10 rounded-full object-cover"
+          />
+        ) : (
+          <div className="h-10 w-10 rounded-full bg-ink/10" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-ink">{ch.name}</p>
+          <p className="truncate text-xs text-ink/45">
+            {ch.hidden
+              ? assigned
+                ? `숨김 · ${ch.folders.map((f) => f.folder.name).join(", ")}`
+                : "숨김 · 미배정"
+              : assigned
+                ? ch.folders.map((f) => f.folder.name).join(", ")
+                : "미배정"}
+          </p>
+        </div>
+        {ch.hidden ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setHidden([ch.id], false)}
+            className="shrink-0 rounded-lg border border-ink/15 px-3 py-1.5 text-xs font-medium text-ink/70 hover:border-ink/30 disabled:opacity-50"
+          >
+            숨기기 취소
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => openAssignForChannels([ch.id])}
+              title={
+                assigned
+                  ? ch.folders.map((f) => f.folder.name).join(", ")
+                  : "폴더 배정"
+              }
+              className={`max-w-[9.5rem] truncate rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                assigned
+                  ? "border-crimson/30 bg-crimson/5 text-crimson"
+                  : "border-ink/15 text-ink/70 hover:border-ink/30"
+              }`}
+            >
+              {label}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setHidden([ch.id], true)}
+              className="shrink-0 rounded-lg border border-ink/15 px-3 py-1.5 text-xs font-medium text-ink/55 hover:border-ink/30 disabled:opacity-50"
+            >
+              숨기기
+            </button>
+          </>
+        )}
+      </li>
+    );
+  }
+
+  function renderChannelGroup(
+    title: string,
+    group: Channel[],
+    emptyText: string,
+  ) {
+    return (
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-xs font-semibold text-ink/60">
+            {title}
+            <span className="ml-1.5 font-normal text-ink/40">
+              ({group.length})
+            </span>
+          </h3>
+          {group.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => toggleAllInGroup(group)}
+              className="rounded-md px-2 py-0.5 text-[11px] text-ink/55 hover:bg-ink/5 hover:text-ink"
+            >
+              {group.every((ch) => selectedChannelIds.includes(ch.id))
+                ? "이 목록 해제"
+                : "이 목록 선택"}
+            </button>
+          ) : null}
+        </div>
+        {group.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-ink/10 px-3 py-4 text-xs text-ink/40">
+            {emptyText}
+          </p>
+        ) : (
+          <ul className="space-y-2">{group.map(renderChannelRow)}</ul>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-10 overflow-x-hidden px-4 py-8 sm:px-6">
       <div>
@@ -238,6 +380,9 @@ export function FolderManageClient({
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/45">
           내 폴더
+          <span className="ml-1.5 font-normal normal-case tracking-normal text-ink/40">
+            ({folders.length})
+          </span>
         </h2>
         {folders.length === 0 ? (
           <p className="text-sm text-ink/45">아직 폴더가 없습니다.</p>
@@ -279,167 +424,73 @@ export function FolderManageClient({
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/45">
-            {showHidden ? "숨긴 유튜브 채널" : "유튜브 채널 배정"}
+            유튜브 채널 배정
           </h2>
           <div className="flex flex-wrap items-center gap-2">
-            {listChannels.length > 0 ? (
+            {channels.length > 0 ? (
               <>
                 <button
                   type="button"
-                  onClick={toggleAllInList}
+                  onClick={() => toggleAllInGroup(channels)}
                   className="rounded-md border border-ink/15 px-2.5 py-1 text-xs text-ink/70 hover:border-ink/30"
                 >
-                  {listChannels.every((ch) =>
-                    selectedChannelIds.includes(ch.id),
-                  )
+                  {channels.every((ch) => selectedChannelIds.includes(ch.id))
                     ? "전체 해제"
                     : "전체 선택"}
                 </button>
-                {showHidden ? (
+                <button
+                  type="button"
+                  disabled={busy || selectedVisible.length === 0}
+                  onClick={() => openAssignForChannels(selectedVisible)}
+                  className="rounded-md bg-ink px-2.5 py-1 text-xs font-medium text-paper hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  선택 {selectedVisible.length}개 폴더 배정
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || selectedVisible.length === 0}
+                  onClick={() => setHidden(selectedVisible, true)}
+                  className="rounded-md border border-ink/20 px-2.5 py-1 text-xs font-medium text-ink/70 hover:border-ink/40 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  선택 {selectedVisible.length}개 숨기기
+                </button>
+                {selectedHidden.length > 0 ? (
                   <button
                     type="button"
-                    disabled={busy || selectedInList.length === 0}
-                    onClick={() => setHidden(selectedInList, false)}
-                    className="rounded-md bg-ink px-2.5 py-1 text-xs font-medium text-paper hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={busy}
+                    onClick={() => setHidden(selectedHidden, false)}
+                    className="rounded-md border border-ink/20 px-2.5 py-1 text-xs font-medium text-ink/70 hover:border-ink/40 disabled:opacity-40"
                   >
-                    선택 {selectedInList.length}개 숨기기 취소
+                    선택 {selectedHidden.length}개 숨기기 취소
                   </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      disabled={busy || selectedInList.length === 0}
-                      onClick={() => openAssignForChannels(selectedInList)}
-                      className="rounded-md bg-ink px-2.5 py-1 text-xs font-medium text-paper hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      선택 {selectedInList.length}개 폴더 배정
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy || selectedInList.length === 0}
-                      onClick={() => setHidden(selectedInList, true)}
-                      className="rounded-md border border-ink/20 px-2.5 py-1 text-xs font-medium text-ink/70 hover:border-ink/40 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      선택 {selectedInList.length}개 숨기기
-                    </button>
-                  </>
-                )}
+                ) : null}
               </>
             ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                setShowHidden((v) => !v);
-                setSelectedChannelIds([]);
-              }}
-              className="rounded-md border border-ink/15 px-2.5 py-1 text-xs text-ink/70 hover:border-ink/30"
-            >
-              {showHidden
-                ? `배정 목록 (${visibleChannels.length})`
-                : `숨긴 채널 ${hiddenChannels.length}`}
-            </button>
           </div>
         </div>
 
         <p className="text-xs text-ink/45">
-          {showHidden
-            ? "숨긴 채널은 삭제되지 않으며, 동기화 후에도 이 목록에만 남습니다. 숨기기를 취소하면 배정 목록에 다시 나타납니다."
-            : "관심 없는 채널은 선택 후 숨기기를 누르면 목록에서만 사라집니다. (삭제 아님)"}
+          폴더 배정이나 숨기기를 한 채널과, 아직 손대지 않은 채널을 나눠
+          표시합니다.
         </p>
 
         {channels.length === 0 ? (
           <p className="text-sm text-ink/45">
             동기화된 채널이 없습니다. 설정에서 구독 목록을 불러오세요.
           </p>
-        ) : listChannels.length === 0 ? (
-          <p className="text-sm text-ink/45">
-            {showHidden
-              ? "숨긴 채널이 없습니다."
-              : "표시할 채널이 없습니다. 모두 숨겼다면 「숨긴 채널」에서 확인할 수 있습니다."}
-          </p>
         ) : (
-          <ul className="space-y-2">
-            {listChannels.map((ch) => {
-              const checked = selectedChannelIds.includes(ch.id);
-              const label = folderLabel(ch);
-              const assigned = ch.folders.length > 0;
-              return (
-                <li
-                  key={ch.id}
-                  className={`flex items-center gap-3 rounded-xl border bg-paper px-3 py-2 ${
-                    checked
-                      ? "border-crimson/40 bg-crimson/[0.03]"
-                      : "border-ink/10"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleChannel(ch.id)}
-                    aria-label={`${ch.name} 선택`}
-                    className="h-4 w-4 shrink-0 accent-crimson"
-                  />
-                  {ch.thumbnailUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={ch.thumbnailUrl}
-                      alt=""
-                      className="h-10 w-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-ink/10" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-ink">
-                      {ch.name}
-                    </p>
-                    <p className="truncate text-xs text-ink/45">
-                      {assigned
-                        ? ch.folders.map((f) => f.folder.name).join(", ")
-                        : "미배정"}
-                    </p>
-                  </div>
-                  {showHidden ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => setHidden([ch.id], false)}
-                      className="shrink-0 rounded-lg border border-ink/15 px-3 py-1.5 text-xs font-medium text-ink/70 hover:border-ink/30 disabled:opacity-50"
-                    >
-                      숨기기 취소
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => openAssignForChannels([ch.id])}
-                        title={
-                          assigned
-                            ? ch.folders.map((f) => f.folder.name).join(", ")
-                            : "폴더 배정"
-                        }
-                        className={`max-w-[9.5rem] truncate rounded-lg border px-3 py-1.5 text-xs font-medium ${
-                          assigned
-                            ? "border-crimson/30 bg-crimson/5 text-crimson"
-                            : "border-ink/15 text-ink/70 hover:border-ink/30"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setHidden([ch.id], true)}
-                        className="shrink-0 rounded-lg border border-ink/15 px-3 py-1.5 text-xs font-medium text-ink/55 hover:border-ink/30 disabled:opacity-50"
-                      >
-                        숨기기
-                      </button>
-                    </>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+          <div className="space-y-8">
+            {renderChannelGroup(
+              "등록된 채널 (배정·숨김)",
+              registeredChannels,
+              "아직 배정하거나 숨긴 채널이 없습니다.",
+            )}
+            {renderChannelGroup(
+              "미등록 채널",
+              unregisteredChannels,
+              "미등록 채널이 없습니다.",
+            )}
+          </div>
         )}
       </section>
 
