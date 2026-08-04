@@ -6,7 +6,8 @@ import { YouTubePlayer } from "@/components/YouTubePlayer";
 import { AddLinkModal } from "@/components/AddLinkModal";
 import { BulkLinkUploadModal } from "@/components/BulkLinkUploadModal";
 import { VideoMemoBox } from "@/components/VideoMemoBox";
-import { VideoSummaryBox } from "@/components/VideoSummaryBox";
+import { AiShortcutLinks } from "@/components/AiShortcutLinks";
+import { CopyVideoUrlButton } from "@/components/CopyVideoUrlButton";
 import {
   FOLDER_VIDEO_LIMIT,
   FOLDER_VIDEO_MAX_AGE_MONTHS,
@@ -359,7 +360,7 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
                 {playing.channelName} · {formatWhen(playing.publishedAt)}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={playNext}
@@ -375,12 +376,12 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
               >
                 원본
               </a>
+              <CopyVideoUrlButton videoId={playing.videoId} />
             </div>
             <VideoMemoBox videoId={playing.videoId} videoTitle={playing.title} />
-            <VideoSummaryBox
+            <AiShortcutLinks
               videoId={playing.videoId}
               videoTitle={playing.title}
-              channelName={playing.channelName}
             />
           </div>
         ) : (

@@ -86,8 +86,6 @@ Storage → **Create Database** → **Postgres** → 프로젝트에 연결
 | `AUTH_GOOGLE_ID` | Google OAuth 클라이언트 ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth 시크릿 |
 | `AUTH_URL` | `https://YOUR-PROJECT.vercel.app` (**https**, 끝 `/` 없음) |
-| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) API 키 (재생 패널 영상 요약) |
-| `GEMINI_MODEL` (선택) | 기본 `gemini-2.0-flash` |
 
 `AUTH_URL`을 `http://`로 넣으면 Google `redirect_uri_mismatch`가 납니다.  
 Production / Preview에 모두 넣는 것을 권장합니다.
@@ -131,7 +129,7 @@ Google OAuth 클라이언트에 추가:
 - `/login` — Google로 계속하기
 - `/` — 대시보드
 - `/folders` — 폴더·채널·링크 관리
-- `/folders/[id]` — 영상 피드 + X/FB 링크 + 인라인 재생 + 메모 + Gemini 요약
+- `/folders/[id]` — 영상 피드 + X/FB 링크 + 인라인 재생 + 메모 + AI 바로가기
 - `/settings` — 동기화
 - `/demo` — UI 미리보기(로그인 없음)
 - `/memos` — 메모장
