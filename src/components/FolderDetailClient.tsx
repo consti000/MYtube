@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { YouTubePlayer } from "@/components/YouTubePlayer";
 import { AddLinkModal } from "@/components/AddLinkModal";
@@ -82,11 +82,23 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
+  const playerPanelRef = useRef<HTMLElement>(null);
 
   const playing = sortedVideos.find((v) => v.id === playingId) ?? null;
 
+  function scrollToPlayer() {
+    // 목록 아래/옆 재생 패널로 이동 (좁은 화면에서 특히 유용)
+    requestAnimationFrame(() => {
+      playerPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
   function selectVideo(id: string) {
     setPlayingId(id);
+    scrollToPlayer();
   }
 
   function openAddModal() {
@@ -108,9 +120,9 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col md:grid md:grid-cols-[200px_minmax(0,1fr)_600px]">
+    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col overflow-x-hidden md:grid md:grid-cols-[minmax(160px,200px)_minmax(0,1fr)] md:items-start xl:grid-cols-[minmax(160px,200px)_minmax(0,1fr)_minmax(300px,40%)]">
       {/* Left: folders */}
-      <aside className="hidden border-r border-ink/10 bg-ink/[0.02] p-3 md:block">
+      <aside className="hidden border-r border-ink/10 bg-ink/[0.02] p-3 md:sticky md:top-12 md:block md:max-h-[calc(100vh-3rem)] md:self-start md:overflow-y-auto">
         <p className="text-xs font-semibold text-ink/50">주제 폴더</p>
         <ul className="mt-2.5 space-y-1">
           {folders.map((f) => {
@@ -286,8 +298,12 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
         </section>
       </main>
 
-      {/* Right: player */}
-      <aside className="bg-ink/[0.02] p-3.5">
+      {/* Right: player — xl 이상에서만 옆 고정, 그 아래 폭에서는 목록 아래로 */}
+      <aside
+        ref={playerPanelRef}
+        id="playback-panel"
+        className="min-w-0 scroll-mt-14 border-t border-ink/10 bg-ink/[0.02] p-3.5 md:col-span-2 xl:col-span-1 xl:col-start-3 xl:row-start-1 xl:sticky xl:top-12 xl:max-h-[calc(100vh-3rem)] xl:self-start xl:overflow-y-auto xl:border-t-0"
+      >
         {playing ? (
           <div className="space-y-3">
             <p className="text-xs font-semibold text-ink">재생 패널</p>
