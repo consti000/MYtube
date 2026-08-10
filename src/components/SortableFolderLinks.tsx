@@ -51,8 +51,11 @@ function PlatformMark({ platform }: { platform: "x" | "facebook" }) {
 
 function OpenButtonLabel() {
   return (
-    <span className="inline-flex shrink-0 items-center rounded bg-crimson px-1.5 py-0.5 text-[9px] font-semibold leading-none text-paper">
-      열기 →
+    <span
+      className="inline-flex shrink-0 items-center justify-center rounded bg-[#c47884]/50 px-1.5 py-0.5 text-[9px] leading-none text-[#8a4552]"
+      aria-hidden
+    >
+      ▶
     </span>
   );
 }
