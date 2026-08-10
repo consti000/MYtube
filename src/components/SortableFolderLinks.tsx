@@ -27,7 +27,7 @@ export type FolderLinkItem = {
   url: string;
 };
 
-const LINK_GRID = "grid grid-cols-3 gap-1.5";
+const LINK_GRID = "grid grid-cols-2 gap-1.5";
 
 function handleFromUrl(url: string, platform: string) {
   try {
