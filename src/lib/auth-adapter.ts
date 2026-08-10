@@ -69,7 +69,7 @@ export function createAuthAdapter(): Adapter {
     },
     async linkAccount(data) {
       try {
-        // 저장 시점에 암호화 (events에서 다시 암호화하지 않음)
+        // Auth.js Adapter에는 updateAccount가 없음 → 최초 연동 시 여기서 암호화
         const sanitized = toPrismaAccount(
           data as AdapterAccount & Record<string, unknown>,
           true,
@@ -78,24 +78,6 @@ export function createAuthAdapter(): Adapter {
         return sanitized;
       } catch (err) {
         console.error("[auth] linkAccount failed", err);
-        throw err;
-      }
-    },
-    async updateAccount(data) {
-      try {
-        const patch = data as AdapterAccount & Record<string, unknown>;
-        const next: Record<string, unknown> = { ...patch };
-        if (typeof patch.access_token === "string") {
-          next.access_token = encryptToken(patch.access_token);
-        }
-        if (typeof patch.refresh_token === "string") {
-          next.refresh_token = encryptToken(patch.refresh_token);
-        }
-        if (base.updateAccount) {
-          return base.updateAccount(next as AdapterAccount);
-        }
-      } catch (err) {
-        console.error("[auth] updateAccount failed", err);
         throw err;
       }
     },
