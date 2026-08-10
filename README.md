@@ -54,7 +54,9 @@ UI 미리보기: `http://localhost:3000/demo`
    - 로컬: `http://localhost:3000/api/auth/callback/google`
    - Vercel: `https://YOUR-PROJECT.vercel.app/api/auth/callback/google`
 3. [YouTube Data API v3](https://console.cloud.google.com/apis/library/youtube.googleapis.com) 사용 설정
-4. OAuth 동의 화면이 **테스트**면 [테스트 사용자](https://console.cloud.google.com/apis/credentials/consent)에 본인 Gmail 추가
+4. OAuth 동의 화면이 **테스트**면 [테스트 사용자](https://console.cloud.google.com/apis/credentials/consent)에 본인 Gmail 추가  
+   - 테스트 모드에서는 **refresh 토큰이 약 7일 후 만료**됩니다. 영상 캐시 시 `토큰 갱신 실패`가 나면 설정에서 **Google 다시 연결**하세요.  
+   - 장기 사용 시 동의 화면을 **프로덕션**으로 게시하는 것을 권장합니다.
 
 ## Vercel 배포 가이드 (단계별)
 

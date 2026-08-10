@@ -12,10 +12,19 @@ export default async function SettingsPage() {
     include: {
       accounts: {
         where: { provider: "google" },
-        select: { id: true },
+        select: {
+          id: true,
+          refresh_token: true,
+          expires_at: true,
+        },
       },
     },
   });
+
+  const google = user?.accounts[0];
+  const accessExpired = google?.expires_at
+    ? google.expires_at * 1000 < Date.now()
+    : true;
 
   return (
     <>
@@ -25,7 +34,9 @@ export default async function SettingsPage() {
         name={user?.name ?? null}
         image={user?.image ?? null}
         syncInterval={user?.syncInterval ?? 60}
-        googleConnected={(user?.accounts.length ?? 0) > 0}
+        googleConnected={Boolean(google)}
+        hasRefreshToken={Boolean(google?.refresh_token)}
+        accessExpired={accessExpired}
       />
     </>
   );

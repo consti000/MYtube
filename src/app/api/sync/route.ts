@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/session";
-import { syncSubscriptions, syncVideoCache } from "@/lib/youtube";
+import { GoogleTokenError, syncSubscriptions, syncVideoCache } from "@/lib/youtube";
 
 export async function POST(req: Request) {
   const authz = await requireUser();
@@ -21,6 +21,16 @@ export async function POST(req: Request) {
     const result = await syncSubscriptions(authz.userId);
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
+    if (e instanceof GoogleTokenError) {
+      return NextResponse.json(
+        {
+          error: e.message,
+          code: e.code,
+          needsReauth: e.needsReauth,
+        },
+        { status: 401 },
+      );
+    }
     const message = e instanceof Error ? e.message : "Sync failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }

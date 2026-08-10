@@ -1,12 +1,65 @@
 import { prisma } from "@/lib/db";
-import { decryptToken, encryptToken } from "@/lib/crypto";
+import {
+  TokenDecryptError,
+  decryptToken,
+  encryptToken,
+} from "@/lib/crypto";
 
 const YT = "https://www.googleapis.com/youtube/v3";
+
+export class GoogleTokenError extends Error {
+  code: string;
+  status: number;
+  /** 설정 화면에서 재연동을 유도할지 */
+  needsReauth: boolean;
+
+  constructor(
+    message: string,
+    opts: { code?: string; status?: number; needsReauth?: boolean } = {},
+  ) {
+    super(message);
+    this.name = "GoogleTokenError";
+    this.code = opts.code ?? "unknown";
+    this.status = opts.status ?? 0;
+    this.needsReauth = opts.needsReauth ?? false;
+  }
+}
 
 async function getGoogleAccount(userId: string) {
   return prisma.account.findFirst({
     where: { userId, provider: "google" },
   });
+}
+
+function mapGoogleTokenFailure(
+  status: number,
+  body: { error?: string; error_description?: string },
+): GoogleTokenError {
+  const code = body.error ?? `http_${status}`;
+  const desc = body.error_description ?? "";
+
+  if (code === "invalid_grant") {
+    return new GoogleTokenError(
+      "Google 로그인 권한이 만료되었거나 취소되었습니다. 설정에서 Google 계정을 다시 연결해 주세요.",
+      { code, status, needsReauth: true },
+    );
+  }
+  if (code === "invalid_client") {
+    return new GoogleTokenError(
+      "Google OAuth 클라이언트 ID/시크릿이 올바르지 않습니다. 서버 환경 변수를 확인해 주세요.",
+      { code, status, needsReauth: false },
+    );
+  }
+  if (!process.env.AUTH_GOOGLE_ID || !process.env.AUTH_GOOGLE_SECRET) {
+    return new GoogleTokenError(
+      "AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET 환경 변수가 없습니다.",
+      { code: "missing_env", status, needsReauth: false },
+    );
+  }
+  return new GoogleTokenError(
+    `Google 토큰 갱신 실패 (${code}${desc ? `: ${desc}` : ""})`,
+    { code, status, needsReauth: code.includes("invalid") },
+  );
 }
 
 async function refreshAccessToken(userId: string, refreshToken: string) {
@@ -21,11 +74,17 @@ async function refreshAccessToken(userId: string, refreshToken: string) {
     }),
   });
   if (!res.ok) {
-    throw new Error(`Failed to refresh Google token: ${res.status}`);
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      error_description?: string;
+    };
+    console.error("[youtube] token refresh failed", res.status, body);
+    throw mapGoogleTokenFailure(res.status, body);
   }
   const json = (await res.json()) as {
     access_token: string;
     expires_in: number;
+    refresh_token?: string;
   };
   const account = await getGoogleAccount(userId);
   if (account) {
@@ -34,6 +93,9 @@ async function refreshAccessToken(userId: string, refreshToken: string) {
       data: {
         access_token: encryptToken(json.access_token),
         expires_at: Math.floor(Date.now() / 1000) + json.expires_in,
+        ...(typeof json.refresh_token === "string"
+          ? { refresh_token: encryptToken(json.refresh_token) }
+          : {}),
       },
     });
   }
@@ -43,14 +105,47 @@ async function refreshAccessToken(userId: string, refreshToken: string) {
 export async function getYouTubeAccessToken(userId: string): Promise<string> {
   const account = await getGoogleAccount(userId);
   if (!account?.access_token) {
-    throw new Error("Google account not linked");
+    throw new GoogleTokenError(
+      "Google 계정이 연결되어 있지 않습니다. 다시 로그인해 주세요.",
+      { code: "not_linked", needsReauth: true },
+    );
   }
-  const access = decryptToken(account.access_token);
+
+  let access: string;
+  try {
+    access = decryptToken(account.access_token);
+  } catch (e) {
+    if (e instanceof TokenDecryptError) {
+      throw new GoogleTokenError(e.message, {
+        code: "decrypt_failed",
+        needsReauth: true,
+      });
+    }
+    throw e;
+  }
+
   const expiresAt = account.expires_at ?? 0;
   const needsRefresh = expiresAt * 1000 < Date.now() + 60_000;
   if (!needsRefresh) return access;
-  if (!account.refresh_token) return access;
-  return refreshAccessToken(userId, decryptToken(account.refresh_token));
+
+  if (!account.refresh_token) {
+    throw new GoogleTokenError(
+      "Google 갱신 토큰이 없습니다. 설정에서 Google 계정을 다시 연결해 주세요.",
+      { code: "missing_refresh_token", needsReauth: true },
+    );
+  }
+
+  try {
+    return await refreshAccessToken(userId, decryptToken(account.refresh_token));
+  } catch (e) {
+    if (e instanceof TokenDecryptError) {
+      throw new GoogleTokenError(e.message, {
+        code: "decrypt_failed",
+        needsReauth: true,
+      });
+    }
+    throw e;
+  }
 }
 
 class YouTubeApiError extends Error {

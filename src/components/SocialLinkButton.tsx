@@ -1,6 +1,7 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
+import { SocialExternalLink } from "@/components/SocialExternalLink";
 
 type Props = {
   platform: "x" | "facebook";
@@ -25,20 +26,19 @@ function PlatformGlyph({ platform }: { platform: "x" | "facebook" }) {
 
 export function SocialLinkButton({ platform, name, url }: Props) {
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <SocialExternalLink
+      platform={platform}
+      url={url}
       className="group flex items-center gap-3 rounded-xl border border-ink/10 bg-paper px-4 py-3 transition hover:border-crimson/40 hover:bg-crimson/[0.04]"
     >
       <PlatformGlyph platform={platform} />
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium text-ink">{name}</span>
         <span className="block truncate text-xs text-ink/45">
-          {platform === "x" ? "X" : "Facebook"} · 새 탭에서 열기
+          {platform === "x" ? "X" : "Facebook"} · 앱/사이트로 열기
         </span>
       </span>
       <ExternalLink className="h-4 w-4 shrink-0 text-ink/35 transition group-hover:text-crimson" />
-    </a>
+    </SocialExternalLink>
   );
 }

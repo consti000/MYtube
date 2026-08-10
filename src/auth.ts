@@ -1,5 +1,4 @@
 import NextAuth from "next-auth";
-import { encryptToken } from "@/lib/crypto";
 import { createAuthAdapter } from "@/lib/auth-adapter";
 import { normalizeAuthEnv } from "@/lib/auth-env";
 import { prisma } from "@/lib/db";
@@ -40,37 +39,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.sub;
       }
       return session;
-    },
-  },
-  events: {
-    async linkAccount({ account }) {
-      try {
-        const data: { access_token?: string; refresh_token?: string } = {};
-        if (typeof account.access_token === "string") {
-          data.access_token = encryptToken(account.access_token);
-        }
-        if (typeof account.refresh_token === "string") {
-          data.refresh_token = encryptToken(account.refresh_token);
-        }
-        if (!Object.keys(data).length) return;
-
-        if (typeof account.id === "string") {
-          await prisma.account.update({ where: { id: account.id }, data });
-          return;
-        }
-
-        await prisma.account.update({
-          where: {
-            provider_providerAccountId: {
-              provider: account.provider,
-              providerAccountId: account.providerAccountId,
-            },
-          },
-          data,
-        });
-      } catch (err) {
-        console.error("[auth] linkAccount token encrypt failed", err);
-      }
     },
   },
 });

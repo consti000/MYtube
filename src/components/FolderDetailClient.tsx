@@ -316,7 +316,7 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-semibold text-ink">X · Facebook</h2>
               <span className="text-xs text-ink/40">
-                저장해 둔 페이지 URL — 클릭 시 새 탭
+                저장해 둔 페이지 URL — 폰은 앱으로 열기, PC는 새 탭
               </span>
             </div>
             <div className="flex gap-1.5">

@@ -18,6 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
+import { SocialExternalLink } from "@/components/SocialExternalLink";
 
 export type FolderLinkItem = {
   id: string;
@@ -80,10 +81,9 @@ function SortableLinkRow({ item }: { item: FolderLinkItem }) {
       >
         <GripVertical className="h-4 w-4" />
       </button>
-      <a
-        href={item.url}
-        target="_blank"
-        rel="noopener noreferrer"
+      <SocialExternalLink
+        platform={platform}
+        url={item.url}
         className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 pr-3 text-left transition hover:opacity-90"
       >
         <PlatformMark platform={platform} />
@@ -98,7 +98,7 @@ function SortableLinkRow({ item }: { item: FolderLinkItem }) {
         <span className="shrink-0 text-[11px] font-semibold text-crimson">
           열기 →
         </span>
-      </a>
+      </SocialExternalLink>
     </div>
   );
 }
@@ -220,10 +220,9 @@ export function SortableFolderLinks({
               <span className="shrink-0 p-2 text-ink/25">
                 <GripVertical className="h-4 w-4" />
               </span>
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <SocialExternalLink
+                platform={platform}
+                url={item.url}
                 className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 pr-3"
               >
                 <PlatformMark platform={platform} />
@@ -238,7 +237,7 @@ export function SortableFolderLinks({
                 <span className="shrink-0 text-[11px] font-semibold text-crimson">
                   열기 →
                 </span>
-              </a>
+              </SocialExternalLink>
             </div>
           );
         })}
