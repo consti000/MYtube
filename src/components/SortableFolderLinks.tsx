@@ -13,8 +13,8 @@ import {
 import {
   SortableContext,
   arrayMove,
+  rectSortingStrategy,
   useSortable,
-  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
@@ -26,6 +26,8 @@ export type FolderLinkItem = {
   name: string;
   url: string;
 };
+
+const LINK_GRID = "grid grid-cols-3 gap-2";
 
 function handleFromUrl(url: string, platform: string) {
   try {
@@ -41,13 +43,48 @@ function handleFromUrl(url: string, platform: string) {
 function PlatformMark({ platform }: { platform: "x" | "facebook" }) {
   const label = platform === "x" ? "X" : "FB";
   return (
-    <span className="inline-flex h-[18px] min-w-[22px] items-center justify-center rounded-[3px] bg-ink/10 px-[5px] text-[10px] font-bold tracking-wide text-ink/60">
+    <span className="inline-flex h-4 min-w-[18px] items-center justify-center rounded-[3px] bg-ink/10 px-1 text-[9px] font-bold tracking-wide text-ink/60">
       {label}
     </span>
   );
 }
 
-function SortableLinkRow({ item }: { item: FolderLinkItem }) {
+function OpenButtonLabel() {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-md bg-crimson px-2 py-1 text-[10px] font-semibold text-paper shadow-sm">
+      열기 →
+    </span>
+  );
+}
+
+function LinkCardBody({
+  item,
+  platform,
+}: {
+  item: FolderLinkItem;
+  platform: "x" | "facebook";
+}) {
+  return (
+    <>
+      <div className="flex min-w-0 items-start gap-1.5">
+        <PlatformMark platform={platform} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[12px] font-semibold leading-tight text-ink">
+            {item.name}
+          </span>
+          <span className="mt-0.5 block truncate text-[10px] text-ink/40">
+            {handleFromUrl(item.url, platform)}
+          </span>
+        </span>
+      </div>
+      <div className="mt-2 flex justify-end">
+        <OpenButtonLabel />
+      </div>
+    </>
+  );
+}
+
+function SortableLinkCard({ item }: { item: FolderLinkItem }) {
   const platform = item.platform === "facebook" ? "facebook" : "x";
   const {
     attributes,
@@ -67,37 +104,48 @@ function SortableLinkRow({ item }: { item: FolderLinkItem }) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-1 rounded-lg border border-ink/15 bg-paper transition ${
+      className={`flex min-w-0 flex-col rounded-lg border border-ink/15 bg-paper transition ${
         isDragging ? "z-10 opacity-90 shadow-md" : ""
       }`}
     >
-      <button
-        type="button"
-        className="touch-none shrink-0 rounded-md p-2 text-ink/35 hover:bg-ink/5 hover:text-ink/70"
-        aria-label={`${item.name} 순서 변경`}
-        title="드래그하여 순서 변경"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+      <div className="flex items-center justify-between gap-1 border-b border-ink/8 px-1.5 pt-1">
+        <button
+          type="button"
+          className="touch-none rounded p-1 text-ink/35 hover:bg-ink/5 hover:text-ink/70"
+          aria-label={`${item.name} 순서 변경`}
+          title="드래그하여 순서 변경"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+      </div>
       <SocialExternalLink
         platform={platform}
         url={item.url}
-        className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 pr-3 text-left transition hover:opacity-90"
+        className="flex min-w-0 flex-1 flex-col px-2.5 pb-2.5 pt-1.5 text-left transition hover:bg-ink/[0.02]"
       >
-        <PlatformMark platform={platform} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-semibold text-ink">
-            {item.name}
-          </span>
-          <span className="block truncate text-[11px] text-ink/40">
-            {handleFromUrl(item.url, platform)}
-          </span>
+        <LinkCardBody item={item} platform={platform} />
+      </SocialExternalLink>
+    </div>
+  );
+}
+
+function StaticLinkCard({ item }: { item: FolderLinkItem }) {
+  const platform = item.platform === "facebook" ? "facebook" : "x";
+  return (
+    <div className="flex min-w-0 flex-col rounded-lg border border-ink/15 bg-paper">
+      <div className="flex items-center border-b border-ink/8 px-1.5 pt-1">
+        <span className="p-1 text-ink/25">
+          <GripVertical className="h-3.5 w-3.5" />
         </span>
-        <span className="shrink-0 text-[11px] font-semibold text-crimson">
-          열기 →
-        </span>
+      </div>
+      <SocialExternalLink
+        platform={platform}
+        url={item.url}
+        className="flex min-w-0 flex-1 flex-col px-2.5 pb-2.5 pt-1.5"
+      >
+        <LinkCardBody item={item} platform={platform} />
       </SocialExternalLink>
     </div>
   );
@@ -171,32 +219,34 @@ export function SortableFolderLinks({
 
   if (deleteMode) {
     return (
-      <div className="space-y-2">
+      <div className={LINK_GRID}>
         {links.map((s) => {
           const platform = s.platform === "facebook" ? "facebook" : "x";
           const checked = selectedLinkIds.includes(s.id);
           return (
             <label
               key={s.id}
-              className={`flex w-full cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition ${
+              className={`flex min-w-0 cursor-pointer flex-col gap-1.5 rounded-lg border px-2.5 py-2 text-left transition ${
                 checked
                   ? "border-crimson/40 bg-crimson/[0.06]"
                   : "border-ink/15 bg-paper hover:border-ink/25"
               }`}
             >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => onToggleLink(s.id)}
-                className="h-4 w-4 shrink-0 accent-crimson"
-                aria-label={`${s.name} 선택`}
-              />
-              <PlatformMark platform={platform} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-semibold text-ink">
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onToggleLink(s.id)}
+                  className="h-3.5 w-3.5 shrink-0 accent-crimson"
+                  aria-label={`${s.name} 선택`}
+                />
+                <PlatformMark platform={platform} />
+              </div>
+              <span className="min-w-0">
+                <span className="block truncate text-[12px] font-semibold text-ink">
                   {s.name}
                 </span>
-                <span className="block truncate text-[11px] text-ink/40">
+                <span className="mt-0.5 block truncate text-[10px] text-ink/40">
                   {handleFromUrl(s.url, platform)}
                 </span>
               </span>
@@ -209,38 +259,10 @@ export function SortableFolderLinks({
 
   if (!dndReady) {
     return (
-      <div className="space-y-2">
-        {links.map((item) => {
-          const platform = item.platform === "facebook" ? "facebook" : "x";
-          return (
-            <div
-              key={item.id}
-              className="flex items-center gap-1 rounded-lg border border-ink/15 bg-paper"
-            >
-              <span className="shrink-0 p-2 text-ink/25">
-                <GripVertical className="h-4 w-4" />
-              </span>
-              <SocialExternalLink
-                platform={platform}
-                url={item.url}
-                className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 pr-3"
-              >
-                <PlatformMark platform={platform} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-semibold text-ink">
-                    {item.name}
-                  </span>
-                  <span className="block truncate text-[11px] text-ink/40">
-                    {handleFromUrl(item.url, platform)}
-                  </span>
-                </span>
-                <span className="shrink-0 text-[11px] font-semibold text-crimson">
-                  열기 →
-                </span>
-              </SocialExternalLink>
-            </div>
-          );
-        })}
+      <div className={LINK_GRID}>
+        {links.map((item) => (
+          <StaticLinkCard key={item.id} item={item} />
+        ))}
       </div>
     );
   }
@@ -254,11 +276,11 @@ export function SortableFolderLinks({
     >
       <SortableContext
         items={links.map((l) => l.id)}
-        strategy={verticalListSortingStrategy}
+        strategy={rectSortingStrategy}
       >
-        <div className="space-y-2">
+        <div className={LINK_GRID}>
           {links.map((item) => (
-            <SortableLinkRow key={item.id} item={item} />
+            <SortableLinkCard key={item.id} item={item} />
           ))}
         </div>
       </SortableContext>
