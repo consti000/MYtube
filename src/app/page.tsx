@@ -11,22 +11,29 @@ export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user!.id;
 
-  const folders = await prisma.folder.findMany({
-    where: { userId },
-    orderBy: { order: "asc" },
-    include: {
-      _count: { select: { channels: true, links: true } },
-      channels: {
-        include: {
-          channel: {
-            include: {
-              videos: { orderBy: { publishedAt: "desc" }, take: 4 },
+  const [folders, lastVideoCache] = await Promise.all([
+    prisma.folder.findMany({
+      where: { userId },
+      orderBy: { order: "asc" },
+      include: {
+        _count: { select: { channels: true, links: true } },
+        channels: {
+          include: {
+            channel: {
+              include: {
+                videos: { orderBy: { publishedAt: "desc" }, take: 4 },
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.videoCache.findFirst({
+      where: { channel: { userId } },
+      orderBy: { syncedAt: "desc" },
+      select: { syncedAt: true },
+    }),
+  ]);
 
   const cards: DashboardFolderCard[] = folders.map((folder) => {
     const previews = folder.channels
@@ -44,15 +51,36 @@ export default async function DashboardPage() {
     };
   });
 
+  const lastCacheLabel = lastVideoCache
+    ? lastVideoCache.syncedAt.toLocaleString("ko-KR", {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
   return (
     <>
       <AppNav email={session?.user?.email} />
       <main className="mx-auto max-w-7xl overflow-x-hidden px-4 py-8 sm:px-6">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-semibold text-ink sm:text-4xl">
-              대시보드
-            </h1>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h1 className="font-display text-3xl font-semibold text-ink sm:text-4xl">
+                대시보드
+              </h1>
+              {lastCacheLabel ? (
+                <p className="text-xs text-ink/45 sm:text-sm">
+                  영상 캐시 {lastCacheLabel}
+                </p>
+              ) : (
+                <p className="text-xs text-ink/40 sm:text-sm">
+                  영상 캐시 없음
+                </p>
+              )}
+            </div>
             <p className="mt-2 text-sm text-ink/55">
               폴더별 최신 유튜브 영상을 한눈에 보세요.
             </p>
