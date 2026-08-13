@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { AppNav } from "@/components/AppNav";
+import { LocalDateTime } from "@/components/LocalDateTime";
 import {
   DashboardFoldersClient,
   type DashboardFolderCard,
@@ -51,15 +52,7 @@ export default async function DashboardPage() {
     };
   });
 
-  const lastCacheLabel = lastVideoCache
-    ? lastVideoCache.syncedAt.toLocaleString("ko-KR", {
-        year: "numeric",
-        month: "numeric",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : null;
+  const lastCacheAt = lastVideoCache?.syncedAt.toISOString() ?? null;
 
   return (
     <>
@@ -71,9 +64,9 @@ export default async function DashboardPage() {
               <h1 className="font-display text-3xl font-semibold text-ink sm:text-4xl">
                 대시보드
               </h1>
-              {lastCacheLabel ? (
+              {lastCacheAt ? (
                 <p className="text-xs text-ink/45 sm:text-sm">
-                  영상 캐시 {lastCacheLabel}
+                  영상 캐시 <LocalDateTime value={lastCacheAt} />
                 </p>
               ) : (
                 <p className="text-xs text-ink/40 sm:text-sm">
