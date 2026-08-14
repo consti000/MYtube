@@ -73,7 +73,13 @@ export const syncIntervalSchema = z.union([
 
 export const memoInputSchema = z.object({
   content: z.string().trim().min(1).max(1000),
-  videoUrl: z.string().trim().url().max(500),
+  videoUrl: z
+    .union([z.string().trim().url().max(500), z.literal(""), z.null()])
+    .optional(),
   videoTitle: z.string().trim().max(300).optional().nullable(),
   videoId: z.string().trim().max(50).optional().nullable(),
+});
+
+export const memoUpdateSchema = z.object({
+  content: z.string().trim().min(1).max(1000),
 });

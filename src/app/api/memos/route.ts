@@ -3,12 +3,17 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { memoInputSchema } from "@/lib/validators";
 
-export async function GET() {
+export async function GET(req: Request) {
   const authz = await requireUser();
   if ("error" in authz) return authz.error;
 
+  const videoId = new URL(req.url).searchParams.get("videoId")?.trim() || null;
+
   const memos = await prisma.memo.findMany({
-    where: { userId: authz.userId },
+    where: {
+      userId: authz.userId,
+      ...(videoId ? { videoId } : {}),
+    },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(memos);
@@ -27,7 +32,7 @@ export async function POST(req: Request) {
     data: {
       userId: authz.userId,
       content: parsed.data.content,
-      videoUrl: parsed.data.videoUrl,
+      videoUrl: parsed.data.videoUrl?.trim() || "",
       videoTitle: parsed.data.videoTitle ?? null,
       videoId: parsed.data.videoId ?? null,
     },

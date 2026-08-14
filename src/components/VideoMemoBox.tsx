@@ -9,16 +9,52 @@ type Props = {
 
 const MAX_LEN = 1000;
 
+function errorMessage(data: unknown, fallback: string) {
+  const err = (data as { error?: unknown })?.error;
+  if (typeof err === "string") return err;
+  const nested = err as {
+    fieldErrors?: { content?: string[] };
+    formErrors?: string[];
+  } | null;
+  return nested?.fieldErrors?.content?.[0] ?? nested?.formErrors?.[0] ?? fallback;
+}
+
 export function VideoMemoBox({ videoId, videoTitle }: Props) {
   const [content, setContent] = useState("");
+  const [memoId, setMemoId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     setContent("");
+    setMemoId(null);
     setMessage(null);
     setError(null);
+    setLoading(true);
+
+    fetch(`/api/memos?videoId=${encodeURIComponent(videoId)}`)
+      .then(async (res) => {
+        const data = await res.json().catch(() => []);
+        if (cancelled) return;
+        const latest = Array.isArray(data) ? data[0] : null;
+        if (latest?.id && typeof latest.content === "string") {
+          setMemoId(latest.id);
+          setContent(latest.content);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError("메모를 불러오지 못했습니다");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [videoId]);
 
   async function saveMemo(e: React.FormEvent) {
@@ -32,27 +68,27 @@ export function VideoMemoBox({ videoId, videoTitle }: Props) {
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch("/api/memos", {
-        method: "POST",
+      const res = await fetch(memoId ? `/api/memos/${memoId}` : "/api/memos", {
+        method: memoId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: trimmed,
-          videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
-          videoTitle,
-          videoId,
-        }),
+        body: JSON.stringify(
+          memoId
+            ? { content: trimmed }
+            : {
+                content: trimmed,
+                videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+                videoTitle,
+                videoId,
+              },
+        ),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg =
-          data?.error?.fieldErrors?.content?.[0] ??
-          data?.error?.formErrors?.[0] ??
-          data?.error ??
-          "저장 실패";
-        setError(typeof msg === "string" ? msg : "저장에 실패했습니다");
+        setError(errorMessage(data, "저장에 실패했습니다"));
         return;
       }
-      setContent("");
+      if (typeof data?.id === "string") setMemoId(data.id);
+      setContent(trimmed);
       setMessage("메모를 저장했습니다");
     } catch {
       setError("네트워크 오류로 저장하지 못했습니다");
@@ -74,8 +110,11 @@ export function VideoMemoBox({ videoId, videoTitle }: Props) {
         onChange={(e) => setContent(e.target.value.slice(0, MAX_LEN))}
         maxLength={MAX_LEN}
         rows={5}
-        placeholder="재생 중인 영상에 대한 메모를 남겨 보세요"
-        className="w-full resize-y rounded-lg border border-ink/15 bg-paper px-3 py-2 text-sm leading-relaxed text-ink outline-none ring-crimson/30 placeholder:text-ink/35 focus:ring-2"
+        disabled={loading}
+        placeholder={
+          loading ? "메모를 불러오는 중…" : "재생 중인 영상에 대한 메모를 남겨 보세요"
+        }
+        className="w-full resize-y rounded-lg border border-ink/15 bg-paper px-3 py-2 text-sm leading-relaxed text-ink outline-none ring-crimson/30 placeholder:text-ink/35 focus:ring-2 disabled:opacity-60"
       />
       <div className="flex items-center justify-between gap-2">
         <p className="min-h-[1rem] text-[11px]">
@@ -84,15 +123,17 @@ export function VideoMemoBox({ videoId, videoTitle }: Props) {
           ) : message ? (
             <span className="text-emerald-700">{message}</span>
           ) : (
-            <span className="text-ink/40">날짜·영상 URL과 함께 저장됩니다</span>
+            <span className="text-ink/40">
+              저장 후에도 내용이 남습니다. 다시 저장하면 같은 메모가 수정됩니다.
+            </span>
           )}
         </p>
         <button
           type="submit"
-          disabled={pending || !content.trim()}
+          disabled={pending || loading || !content.trim()}
           className="shrink-0 rounded-lg bg-crimson px-3 py-1.5 text-xs font-medium text-paper hover:bg-crimson/90 disabled:opacity-50"
         >
-          {pending ? "저장 중…" : "메모 저장"}
+          {pending ? "저장 중…" : memoId ? "수정 저장" : "메모 저장"}
         </button>
       </div>
     </form>
