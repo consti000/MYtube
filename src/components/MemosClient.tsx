@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Check, Pencil, Trash2, X } from "lucide-react";
 import { parseYoutubeVideoInput } from "@/lib/youtube-url";
 
 export type MemoRow = {
@@ -244,8 +245,8 @@ export function MemosClient({ initialMemos }: Props) {
                 key={m.id}
                 className="rounded-xl border border-ink/10 bg-paper px-4 py-3.5"
               >
-                <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
+                <div className="mb-2 flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-ink/45">
                       {formatDate(m.createdAt)}
                     </p>
@@ -269,24 +270,28 @@ export function MemosClient({ initialMemos }: Props) {
                       </p>
                     )}
                   </div>
-                  <div className="flex shrink-0 gap-1">
+                  <div className="flex shrink-0 items-center gap-0.5">
                     {isEditing ? (
                       <>
                         <button
                           type="button"
                           onClick={() => saveEdit(m.id)}
                           disabled={busy || !editDraft.trim()}
-                          className="rounded-lg bg-crimson px-2.5 py-1 text-xs font-medium text-paper hover:bg-crimson/90 disabled:opacity-50"
+                          title="저장"
+                          aria-label="저장"
+                          className="rounded-md p-1.5 text-crimson hover:bg-crimson/10 disabled:opacity-50"
                         >
-                          {busy ? "저장 중…" : "저장"}
+                          <Check className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
                           onClick={cancelEdit}
                           disabled={busy}
-                          className="rounded-lg px-2.5 py-1 text-xs text-ink/50 hover:bg-ink/5 hover:text-ink disabled:opacity-50"
+                          title="취소"
+                          aria-label="취소"
+                          className="rounded-md p-1.5 text-ink/40 hover:bg-ink/5 hover:text-ink disabled:opacity-50"
                         >
-                          취소
+                          <X className="h-4 w-4" />
                         </button>
                       </>
                     ) : (
@@ -295,17 +300,21 @@ export function MemosClient({ initialMemos }: Props) {
                           type="button"
                           onClick={() => startEdit(m)}
                           disabled={busy}
-                          className="rounded-lg px-2.5 py-1 text-xs text-ink/50 hover:bg-ink/5 hover:text-ink disabled:opacity-50"
+                          title="수정"
+                          aria-label="수정"
+                          className="rounded-md p-1.5 text-ink/40 hover:bg-ink/5 hover:text-ink disabled:opacity-50"
                         >
-                          수정
+                          <Pencil className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
                           onClick={() => removeMemo(m.id)}
                           disabled={busy}
-                          className="rounded-lg px-2.5 py-1 text-xs text-ink/50 hover:bg-ink/5 hover:text-crimson disabled:opacity-50"
+                          title="삭제"
+                          aria-label={busy ? "삭제 중" : "삭제"}
+                          className="rounded-md p-1.5 text-ink/40 hover:bg-ink/5 hover:text-crimson disabled:opacity-50"
                         >
-                          {busy ? "삭제 중…" : "삭제"}
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </>
                     )}
