@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
-import { SESSION_IDLE_MS } from "@/lib/session-idle";
+import { SESSION_ACTIVITY_EVENT, SESSION_IDLE_MS } from "@/lib/session-idle";
 
 const ACTIVITY_EVENTS = [
   "pointerdown",
@@ -46,6 +46,7 @@ export function SessionIdleGuard() {
     for (const ev of ACTIVITY_EVENTS) {
       window.addEventListener(ev, bump, { passive: true });
     }
+    window.addEventListener(SESSION_ACTIVITY_EVENT, bump);
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
@@ -53,6 +54,7 @@ export function SessionIdleGuard() {
       for (const ev of ACTIVITY_EVENTS) {
         window.removeEventListener(ev, bump);
       }
+      window.removeEventListener(SESSION_ACTIVITY_EVENT, bump);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [pathname]);

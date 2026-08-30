@@ -1,11 +1,29 @@
 "use client";
 
+import { useEffect } from "react";
+import { reportSessionActivity } from "@/lib/session-idle";
+
 type Props = {
   videoId: string;
   title: string;
 };
 
+/** 시청 중 iframe 안 조작은 부모 창에 안 올라오므로, 세션을 주기적으로 연장한다. */
+const WATCH_PING_MS = 60_000;
+
+function pingWhileWatching() {
+  if (document.visibilityState !== "visible") return;
+  reportSessionActivity();
+  void fetch("/api/auth/session", { cache: "no-store" });
+}
+
 export function YouTubePlayer({ videoId, title }: Props) {
+  useEffect(() => {
+    pingWhileWatching();
+    const id = window.setInterval(pingWhileWatching, WATCH_PING_MS);
+    return () => window.clearInterval(id);
+  }, [videoId]);
+
   const src = new URL(`https://www.youtube.com/embed/${videoId}`);
   src.searchParams.set("autoplay", "1");
   src.searchParams.set("rel", "0");
