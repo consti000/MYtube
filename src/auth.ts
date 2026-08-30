@@ -3,6 +3,7 @@ import { createAuthAdapter } from "@/lib/auth-adapter";
 import { normalizeAuthEnv } from "@/lib/auth-env";
 import { encryptToken } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
+import { applySessionIdle } from "@/lib/session-idle";
 import { authConfig } from "@/auth.config";
 
 normalizeAuthEnv();
@@ -17,7 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // DB User.id 를 JWT에 고정 (Google sub와 섞이면 폴더/채널이 유실된 것처럼 보임)
       if (user?.id) {
         token.sub = user.id;
-        return token;
+        return applySessionIdle(token, true);
       }
       if (account?.provider && account.providerAccountId) {
         const linked = await prisma.account.findUnique({
@@ -33,7 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.sub = linked.userId;
         }
       }
-      return token;
+      return applySessionIdle(token, !!user);
     },
     async session({ session, token }) {
       if (session.user && token.sub) {

@@ -7,8 +7,15 @@ import {
   DashboardFoldersClient,
   type DashboardFolderCard,
 } from "@/components/DashboardFoldersClient";
+import { LoginVideoCacheSync } from "@/components/LoginVideoCacheSync";
 
-export default async function DashboardPage() {
+type Props = {
+  searchParams: Promise<{ syncVideos?: string }>;
+};
+
+export default async function DashboardPage({ searchParams }: Props) {
+  const { syncVideos } = await searchParams;
+  const autoSync = syncVideos === "1";
   const session = await auth();
   const userId = session!.user!.id;
 
@@ -64,7 +71,9 @@ export default async function DashboardPage() {
               <h1 className="font-display text-3xl font-semibold text-ink sm:text-4xl">
                 대시보드
               </h1>
-              {lastCacheAt ? (
+              {autoSync ? (
+                <LoginVideoCacheSync />
+              ) : lastCacheAt ? (
                 <p className="text-xs text-ink/45 sm:text-sm">
                   영상 캐시 <LocalDateTime value={lastCacheAt} />
                 </p>

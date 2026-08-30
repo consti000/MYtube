@@ -1,5 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
+import { applySessionIdle } from "@/lib/session-idle";
 
 const YOUTUBE_READONLY = "https://www.googleapis.com/auth/youtube.readonly";
 
@@ -17,7 +18,12 @@ export const authConfig = {
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    // 유휴 3분은 jwt lastActive가 담당. 쿠키 절대 수명은 짧게 둔다.
+    maxAge: 30 * 60,
+    updateAge: 60,
+  },
   pages: {
     signIn: "/login",
     error: "/login",
@@ -34,7 +40,7 @@ export const authConfig = {
       if (user?.id) {
         token.sub = user.id;
       }
-      return token;
+      return applySessionIdle(token, !!user);
     },
     async session({ session, token }) {
       if (session.user && token.sub) {

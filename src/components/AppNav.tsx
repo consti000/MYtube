@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
+import { SessionIdleGuard } from "@/components/SessionIdleGuard";
 
 type Props = {
   email?: string | null;
@@ -16,6 +17,7 @@ export function AppNav({ email, youtubeConnected = true }: Props) {
 
   return (
     <header className="border-b border-ink/10 bg-ink/[0.03]">
+      <SessionIdleGuard />
       <div className="flex h-12 items-center gap-4 px-4">
         <Link href="/" className="text-[15px] font-bold tracking-tight text-ink">
           MYtube
