@@ -108,6 +108,13 @@ export function VideoMemoBox({ videoId, videoTitle }: Props) {
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value.slice(0, MAX_LEN))}
+        onFocus={() => {
+          const iframe = document.querySelector(
+            'iframe[src*="youtube.com/embed"]',
+          );
+          if (iframe instanceof HTMLIFrameElement) iframe.blur();
+        }}
+        onKeyDown={(e) => e.stopPropagation()}
         maxLength={MAX_LEN}
         rows={5}
         disabled={loading}
