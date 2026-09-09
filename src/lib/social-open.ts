@@ -114,9 +114,10 @@ export function openSocialLink(platform: SocialPlatform, rawUrl: string): void {
       : normalizeHttpsSocialUrl(platform, rawUrl);
   const ua = navigator.userAgent;
 
-  // PC: 새 탭
+  // PC: 새 탭. feature 문자열의 noopener는 Chromium에서 빈 창만 뜨는 경우가 있다.
   if (!isMobileUserAgent(ua)) {
-    window.open(https, "_blank", "noopener,noreferrer");
+    const opened = window.open(https, "_blank");
+    if (opened) opened.opener = null;
     return;
   }
 

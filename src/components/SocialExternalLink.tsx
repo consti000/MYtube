@@ -1,7 +1,11 @@
 "use client";
 
 import type { AnchorHTMLAttributes, MouseEvent, ReactNode } from "react";
-import { openSocialLink, type SocialPlatform } from "@/lib/social-open";
+import {
+  isMobileUserAgent,
+  openSocialLink,
+  type SocialPlatform,
+} from "@/lib/social-open";
 
 type Props = {
   platform: SocialPlatform;
@@ -14,7 +18,7 @@ type Props = {
 >;
 
 /**
- * 데스크톱: 새 탭 https
+ * 데스크톱: 브라우저가 새 탭에서 https를 연다 (window.open 팝업 차단을 피함)
  * 모바일: X/FB/YouTube 앱 스킴·Intent 우선, 실패 시 같은 탭 https
  */
 export function SocialExternalLink({
@@ -29,6 +33,9 @@ export function SocialExternalLink({
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
       return;
     }
+    if (!isMobileUserAgent(navigator.userAgent)) {
+      return;
+    }
     e.preventDefault();
     openSocialLink(platform, url);
   }
@@ -36,6 +43,8 @@ export function SocialExternalLink({
   return (
     <a
       href={url}
+      target="_blank"
+      rel="noopener noreferrer"
       onClick={onClick}
       className={className}
       {...rest}

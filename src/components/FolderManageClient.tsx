@@ -325,7 +325,7 @@ export function FolderManageClient({
             platform="youtube"
             url={youtubeChannelUrl(ch.externalChannelId)}
             title="유튜브에서 열기"
-            className="block truncate text-sm font-medium text-ink hover:text-crimson"
+            className="relative z-10 block cursor-pointer truncate text-sm font-medium text-ink hover:text-crimson hover:underline"
           >
             {ch.name}
           </SocialExternalLink>
