@@ -78,6 +78,48 @@ export function FolderManageClient({
     (ch) => !ch.hidden && ch.folders.length === 0,
   );
 
+  /** 등록 채널을 대표 폴더(주제)별로 묶는다 */
+  const registeredGroups = (() => {
+    const hiddenOnly: Channel[] = [];
+    const byFolder = new Map<string, { title: string; channels: Channel[] }>();
+
+    for (const ch of registeredChannels) {
+      if (!ch.folders.length) {
+        hiddenOnly.push(ch);
+        continue;
+      }
+      const primary = [...ch.folders].sort((a, b) =>
+        a.folder.name.localeCompare(b.folder.name, "ko"),
+      )[0].folder;
+      const existing = byFolder.get(primary.id);
+      if (existing) existing.channels.push(ch);
+      else byFolder.set(primary.id, { title: primary.name, channels: [ch] });
+    }
+
+    const groups = folders
+      .filter((f) => byFolder.has(f.id))
+      .map((f) => ({
+        key: f.id,
+        title: f.name,
+        channels: byFolder.get(f.id)!.channels,
+      }));
+
+    for (const [id, group] of byFolder) {
+      if (!groups.some((g) => g.key === id)) {
+        groups.push({ key: id, title: group.title, channels: group.channels });
+      }
+    }
+
+    if (hiddenOnly.length) {
+      groups.push({
+        key: "hidden",
+        title: "숨김 · 미배정",
+        channels: hiddenOnly,
+      });
+    }
+    return groups;
+  })();
+
   const selectedVisible = selectedChannelIds.filter((id) =>
     channels.some((ch) => ch.id === id && !ch.hidden),
   );
@@ -332,9 +374,13 @@ export function FolderManageClient({
     title: string,
     group: Channel[],
     emptyText: string,
+    sectionId?: string,
   ) {
     return (
-      <div className="space-y-2">
+      <div
+        id={sectionId}
+        className={`space-y-2 ${sectionId ? "scroll-mt-20" : ""}`}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-xs font-semibold text-ink/60">
             {title}
@@ -366,7 +412,52 @@ export function FolderManageClient({
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-10 overflow-x-hidden px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start lg:gap-10">
+      <nav
+        aria-label="페이지 바로가기"
+        className="sticky top-0 z-20 -mx-4 mb-6 flex gap-1.5 overflow-x-auto border-b border-ink/10 bg-paper/95 px-4 py-2 backdrop-blur lg:top-4 lg:mx-0 lg:mb-0 lg:block lg:overflow-visible lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none"
+      >
+        <p className="mb-2 hidden text-[11px] font-semibold uppercase tracking-wide text-ink/40 lg:block">
+          바로가기
+        </p>
+        <a
+          href="#section-folders"
+          className="shrink-0 rounded-full border border-ink/10 px-2.5 py-1 text-xs text-ink/70 hover:border-crimson/30 hover:text-crimson lg:mb-0.5 lg:block lg:rounded-md lg:border-0 lg:px-2 lg:py-1"
+        >
+          내 폴더
+          <span className="ml-1 text-ink/40">{folders.length}</span>
+        </a>
+        <a
+          href="#section-assigned"
+          className="shrink-0 rounded-full border border-ink/10 px-2.5 py-1 text-xs text-ink/70 hover:border-crimson/30 hover:text-crimson lg:mb-0.5 lg:block lg:rounded-md lg:border-0 lg:px-2 lg:py-1"
+        >
+          등록된 채널
+          <span className="ml-1 text-ink/40">{registeredChannels.length}</span>
+        </a>
+        <div className="contents lg:mt-1 lg:block lg:space-y-0.5 lg:border-l lg:border-ink/10 lg:pl-2">
+          {registeredGroups.map((g) => (
+            <a
+              key={g.key}
+              href={`#assign-folder-${g.key}`}
+              className="shrink-0 rounded-full border border-ink/10 px-2.5 py-1 text-xs text-ink/55 hover:border-crimson/30 hover:text-crimson lg:block lg:truncate lg:rounded-md lg:border-0 lg:px-2 lg:py-1 lg:hover:bg-ink/5"
+            >
+              {g.title}
+              <span className="ml-1 text-ink/35">{g.channels.length}</span>
+            </a>
+          ))}
+        </div>
+        <a
+          href="#section-unregistered"
+          className="shrink-0 rounded-full border border-ink/10 px-2.5 py-1 text-xs text-ink/70 hover:border-crimson/30 hover:text-crimson lg:mt-1 lg:block lg:rounded-md lg:border-0 lg:px-2 lg:py-1"
+        >
+          미등록 채널
+          <span className="ml-1 text-ink/40">
+            {unregisteredChannels.length}
+          </span>
+        </a>
+      </nav>
+
+      <div className="min-w-0 space-y-10 overflow-x-hidden">
       <div>
         <h1 className="font-display text-3xl font-semibold text-ink">폴더 관리</h1>
         <p className="mt-2 text-sm text-ink/55">
@@ -391,7 +482,7 @@ export function FolderManageClient({
         </button>
       </form>
 
-      <section className="space-y-3">
+      <section id="section-folders" className="scroll-mt-20 space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/45">
           내 폴더
           <span className="ml-1.5 font-normal normal-case tracking-normal text-ink/40">
@@ -435,11 +526,7 @@ export function FolderManageClient({
         )}
       </section>
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/45">
-            유튜브 채널 배정
-          </h2>
+      <section id="section-assigned" className="scroll-mt-20 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {channels.length > 0 ? (
               <>
@@ -494,19 +581,30 @@ export function FolderManageClient({
           </p>
         ) : (
           <div className="space-y-8">
-            {renderChannelGroup(
-              "등록된 채널 (배정·숨김)",
-              registeredChannels,
-              "아직 배정하거나 숨긴 채널이 없습니다.",
+            {registeredGroups.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-ink/10 px-3 py-4 text-xs text-ink/40">
+                아직 배정하거나 숨긴 채널이 없습니다.
+              </p>
+            ) : (
+              registeredGroups.map((g) =>
+                renderChannelGroup(
+                  g.title,
+                  g.channels,
+                  "이 폴더에 배정된 채널이 없습니다.",
+                  `assign-folder-${g.key}`,
+                ),
+              )
             )}
             {renderChannelGroup(
               "미등록 채널",
               unregisteredChannels,
               "미등록 채널이 없습니다.",
+              "section-unregistered",
             )}
           </div>
         )}
       </section>
+      </div>
 
       {assignOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

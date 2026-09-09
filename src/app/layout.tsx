@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={`${display.variable} ${body.variable} h-full`}>
+    <html lang="ko" className={`${display.variable} ${body.variable} h-full scroll-smooth`}>
       <body className="min-h-full antialiased">{children}</body>
     </html>
   );
