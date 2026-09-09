@@ -1,5 +1,14 @@
 const YT_ID = /^[\w-]{11}$/;
 
+/** YouTube Data API channelId(UC…) → 채널 페이지 URL */
+export function youtubeChannelUrl(channelId: string): string {
+  const id = channelId.trim();
+  if (id.startsWith("@")) {
+    return `https://www.youtube.com/${id}`;
+  }
+  return `https://www.youtube.com/channel/${id}`;
+}
+
 /** YouTube URL에서 watch URL과 videoId를 뽑는다. 빈 값은 영상 없는 메모. */
 export function parseYoutubeVideoInput(raw: string): {
   videoUrl: string;

@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SocialExternalLink } from "@/components/SocialExternalLink";
 import { reportSessionActivity } from "@/lib/session-idle";
+import { youtubeChannelUrl } from "@/lib/youtube-url";
 
 type Channel = {
   id: string;
   name: string;
+  externalChannelId: string;
   thumbnailUrl: string | null;
   hidden: boolean;
   folders: { folder: { id: string; name: string } }[];
@@ -318,7 +321,14 @@ export function FolderManageClient({
           <div className="h-10 w-10 rounded-full bg-ink/10" />
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-ink">{ch.name}</p>
+          <SocialExternalLink
+            platform="youtube"
+            url={youtubeChannelUrl(ch.externalChannelId)}
+            title="유튜브에서 열기"
+            className="block truncate text-sm font-medium text-ink hover:text-crimson"
+          >
+            {ch.name}
+          </SocialExternalLink>
           <p className="truncate text-xs text-ink/45">
             {ch.hidden
               ? assigned

@@ -1,10 +1,10 @@
 "use client";
 
 import type { AnchorHTMLAttributes, MouseEvent, ReactNode } from "react";
-import { openSocialLink } from "@/lib/social-open";
+import { openSocialLink, type SocialPlatform } from "@/lib/social-open";
 
 type Props = {
-  platform: "x" | "facebook";
+  platform: SocialPlatform;
   url: string;
   children: ReactNode;
   className?: string;
@@ -15,7 +15,7 @@ type Props = {
 
 /**
  * 데스크톱: 새 탭 https
- * 모바일: X/FB 앱 스킴·Intent 우선, 실패 시 같은 탭 https (Universal Link)
+ * 모바일: X/FB/YouTube 앱 스킴·Intent 우선, 실패 시 같은 탭 https
  */
 export function SocialExternalLink({
   platform,

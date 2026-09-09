@@ -1,10 +1,13 @@
-/** X / Facebook — Android 브라우저(삼성 인터넷·Chrome 등)에서 네이티브 앱으로 열기 */
+/** X / Facebook / YouTube — Android 브라우저(삼성 인터넷·Chrome 등)에서 네이티브 앱으로 열기 */
 
 const MOBILE_UA = /Android|iPhone|iPad|iPod|Mobile/i;
 const ANDROID_UA = /Android/i;
 
 const X_APP_PACKAGE = "com.twitter.android";
 const FB_APP_PACKAGE = "com.facebook.katana";
+const YT_APP_PACKAGE = "com.google.android.youtube";
+
+export type SocialPlatform = "x" | "facebook" | "youtube";
 
 const X_RESERVED = new Set([
   "home",
@@ -92,14 +95,23 @@ function androidTwitterUserIntent(screenName: string, httpsUrl: string): string 
   return `intent://user?screen_name=${encodeURIComponent(screenName)}#Intent;scheme=twitter;package=${X_APP_PACKAGE};S.browser_fallback_url=${fallback};end`;
 }
 
+function youtubeIosAppUrl(httpsUrl: string): string | null {
+  try {
+    const u = new URL(httpsUrl);
+    return `youtube://${u.host}${u.pathname}${u.search}`;
+  } catch {
+    return null;
+  }
+}
+
 /** 모바일에서 네이티브 앱 우선, 실패 시 https 폴백 */
-export function openSocialLink(
-  platform: "x" | "facebook",
-  rawUrl: string,
-): void {
+export function openSocialLink(platform: SocialPlatform, rawUrl: string): void {
   if (typeof window === "undefined") return;
 
-  const https = normalizeHttpsSocialUrl(platform, rawUrl);
+  const https =
+    platform === "youtube"
+      ? rawUrl
+      : normalizeHttpsSocialUrl(platform, rawUrl);
   const ua = navigator.userAgent;
 
   // PC: 새 탭
@@ -110,25 +122,22 @@ export function openSocialLink(
 
   // —— Android ——
   if (isAndroidUserAgent(ua)) {
-    if (platform === "x") {
-      const screenName = extractXScreenName(https);
-      // 1) App Links 스타일 Intent (가장 안정적)
-      // 2) 실패 시 twitter 스킴 Intent
-      try {
-        window.location.assign(androidHttpsIntent(https, X_APP_PACKAGE));
-        return;
-      } catch {
+    const pkg =
+      platform === "x"
+        ? X_APP_PACKAGE
+        : platform === "facebook"
+          ? FB_APP_PACKAGE
+          : YT_APP_PACKAGE;
+    try {
+      window.location.assign(androidHttpsIntent(https, pkg));
+      return;
+    } catch {
+      if (platform === "x") {
+        const screenName = extractXScreenName(https);
         if (screenName) {
           window.location.assign(androidTwitterUserIntent(screenName, https));
           return;
         }
-      }
-    } else {
-      try {
-        window.location.assign(androidHttpsIntent(https, FB_APP_PACKAGE));
-        return;
-      } catch {
-        /* fall through */
       }
     }
     window.location.assign(https);
@@ -143,6 +152,13 @@ export function openSocialLink(
         `twitter://user?screen_name=${encodeURIComponent(screenName)}`,
         https,
       );
+      return;
+    }
+  }
+  if (platform === "youtube") {
+    const appUrl = youtubeIosAppUrl(https);
+    if (appUrl) {
+      navigateWithAppFallback(appUrl, https);
       return;
     }
   }

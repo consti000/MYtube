@@ -19,6 +19,7 @@ export default async function FoldersPage() {
       select: {
         id: true,
         name: true,
+        externalChannelId: true,
         thumbnailUrl: true,
         hidden: true,
         folders: { include: { folder: { select: { id: true, name: true } } } },
