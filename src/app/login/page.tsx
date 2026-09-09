@@ -229,8 +229,8 @@ export default async function LoginPage({ searchParams }: Props) {
 
         <p className="mt-6 text-xs leading-relaxed text-ink/40">
           Google 로그인으로 YouTube 구독 목록을 불러옵니다. X·Facebook은 API 없이
-          링크만 직접 등록합니다. 10분 동안 조작이 없으면 자동으로 로그아웃되어
-          영상 캐시용 토큰을 다시 받습니다.
+          링크만 직접 등록합니다. 영상을 보는 동안은 유지되고, 10분 동안 조작이
+          없으면 자동으로 로그아웃되어 영상 캐시용 토큰을 다시 받습니다.
         </p>
       </div>
     </main>
