@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Check } from "lucide-react";
 import { YouTubePlayer } from "@/components/YouTubePlayer";
 import { AddLinkModal } from "@/components/AddLinkModal";
 import { BulkLinkUploadModal } from "@/components/BulkLinkUploadModal";
@@ -41,6 +42,7 @@ type Props = {
   folders: FolderListItem[];
   videos: VideoItem[];
   links: LinkItem[];
+  watchedVideoIds?: string[];
 };
 
 function formatWhen(date: string | Date) {
@@ -65,7 +67,13 @@ function PlatformMark({ platform }: { platform: "youtube" | "x" | "facebook" }) 
   );
 }
 
-export function FolderDetailClient({ folder, folders, videos, links }: Props) {
+export function FolderDetailClient({
+  folder,
+  folders,
+  videos,
+  links,
+  watchedVideoIds = [],
+}: Props) {
   const router = useRouter();
   const sortedVideos = useMemo(
     () =>
@@ -79,6 +87,7 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
   const [playingId, setPlayingId] = useState<string | null>(
     sortedVideos[0]?.id ?? null,
   );
+  const [watchedIds, setWatchedIds] = useState<string[]>(watchedVideoIds);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -109,9 +118,22 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
     });
   }
 
+  function persistWatch(youtubeVideoId: string) {
+    setWatchedIds((prev) =>
+      prev.includes(youtubeVideoId) ? prev : [...prev, youtubeVideoId],
+    );
+    void fetch("/api/watches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoId: youtubeVideoId }),
+    });
+  }
+
   function selectVideo(id: string) {
     setPlayingId(id);
     scrollToPlayer();
+    const video = sortedVideos.find((v) => v.id === id);
+    if (video) persistWatch(video.videoId);
   }
 
   function openAddModal() {
@@ -267,6 +289,7 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
           ) : (
             sortedVideos.map((v) => {
               const active = playingId === v.id;
+              const watched = watchedIds.includes(v.videoId);
               return (
                 <button
                   key={v.id}
@@ -284,19 +307,34 @@ export function FolderDetailClient({ folder, folders, videos, links }: Props) {
                       <img
                         src={v.thumbnailUrl}
                         alt=""
-                        className="h-full w-full object-cover"
+                        className={`h-full w-full object-cover ${
+                          watched && !active ? "opacity-45" : ""
+                        }`}
                       />
                     ) : null}
                     <div className="absolute flex h-7 w-7 items-center justify-center rounded-full bg-ink/70">
                       <div className="ml-0.5 h-0 w-0 border-y-[5px] border-l-[8px] border-y-transparent border-l-paper" />
                     </div>
+                    {watched ? (
+                      <span
+                        title="재생함"
+                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm"
+                      >
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </span>
+                    ) : null}
                   </div>
                   <div className="flex flex-col justify-center gap-1">
-                    <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-ink">
+                    <p
+                      className={`line-clamp-2 text-[13px] font-semibold leading-snug ${
+                        watched && !active ? "text-ink/55" : "text-ink"
+                      }`}
+                    >
                       {v.title}
                     </p>
                     <p className="text-[11px] text-ink/45">
                       {v.channelName} · {formatWhen(v.publishedAt)}
+                      {watched ? " · 재생함" : ""}
                     </p>
                     <div>
                       <PlatformMark platform="youtube" />

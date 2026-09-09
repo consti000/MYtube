@@ -24,6 +24,7 @@ model User {
   channels Channel[]
   links    Link[]
   memos    Memo[]
+  watches  VideoWatch[]
 }
 
 model Account {
@@ -150,6 +151,19 @@ model VideoCache {
 
   @@unique([channelId, videoId])
   @@index([channelId, publishedAt])
+}
+
+/** 재생 목록에서 직접 골라 본 유튜브 영상 */
+model VideoWatch {
+  id        String   @id @default(cuid())
+  userId    String
+  videoId   String
+  watchedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([userId, watchedAt])
 }
 
 /** 재생 패널에서 남긴 유튜브 메모 */

@@ -83,3 +83,7 @@ export const memoInputSchema = z.object({
 export const memoUpdateSchema = z.object({
   content: z.string().trim().min(1).max(1000),
 });
+
+export const videoWatchInputSchema = z.object({
+  videoId: z.string().trim().min(5).max(50),
+});

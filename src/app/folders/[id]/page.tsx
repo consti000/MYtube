@@ -74,6 +74,16 @@ export default async function FolderDetailPage({ params }: Props) {
     channelName: channelNameById.get(v.channelId) ?? "",
   }));
 
+  const youtubeIds = [...new Set(videos.map((v) => v.videoId))];
+  const watchedRows =
+    youtubeIds.length === 0
+      ? []
+      : await prisma.videoWatch.findMany({
+          where: { userId, videoId: { in: youtubeIds } },
+          select: { videoId: true },
+        });
+  const watchedVideoIds = watchedRows.map((w) => w.videoId);
+
   const folderList = folders.map((f) => ({
     id: f.id,
     name: f.name,
@@ -92,6 +102,7 @@ export default async function FolderDetailPage({ params }: Props) {
         }}
         folders={folderList}
         videos={videos}
+        watchedVideoIds={watchedVideoIds}
         links={folder.links.map((fl) => ({
           id: fl.link.id,
           platform: fl.link.platform,
