@@ -20,7 +20,7 @@ export const authConfig = {
   ],
   session: {
     strategy: "jwt",
-    // 유휴 3분은 jwt lastActive가 담당. 쿠키 절대 수명은 짧게 둔다.
+    // 유휴 10분은 jwt lastActive가 담당. 쿠키 절대 수명은 짧게 둔다.
     maxAge: 30 * 60,
     updateAge: 60,
   },

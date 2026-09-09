@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { reportSessionActivity } from "@/lib/session-idle";
 
 type Channel = {
   id: string;
@@ -56,6 +57,17 @@ export function FolderManageClient({
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [assignError, setAssignError] = useState<string | null>(null);
+
+  useEffect(() => {
+    function ping() {
+      if (document.visibilityState !== "visible") return;
+      reportSessionActivity();
+      void fetch("/api/auth/session", { cache: "no-store" });
+    }
+    ping();
+    const id = window.setInterval(ping, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   /** 폴더 배정 또는 숨기기를 한 채널 — 폴더명 → 채널명 순 */
   const registeredChannels = channels
@@ -204,10 +216,12 @@ export function FolderManageClient({
       };
       if (!res.ok) {
         const msg =
-          typeof data.error === "string"
-            ? data.error
-            : data.error?.formErrors?.[0] ??
-              `배정 저장 실패 (${res.status})`;
+          res.status === 401
+            ? "로그인이 만료되었습니다. 다시 로그인해 주세요."
+            : typeof data.error === "string"
+              ? data.error
+              : data.error?.formErrors?.[0] ??
+                `배정 저장 실패 (${res.status})`;
         setAssignError(msg);
         return;
       }

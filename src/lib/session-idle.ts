@@ -1,7 +1,7 @@
 import type { JWT } from "next-auth/jwt";
 
 /** 이 시간 동안 요청·입력이 없으면 세션을 만료한다. */
-export const SESSION_IDLE_SECONDS = 3 * 60;
+export const SESSION_IDLE_SECONDS = 10 * 60;
 export const SESSION_IDLE_MS = SESSION_IDLE_SECONDS * 1000;
 
 export const SESSION_ACTIVITY_EVENT = "mytube:session-activity";
