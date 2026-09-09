@@ -530,6 +530,10 @@ export function FolderManageClient({
       </section>
 
       <section id="section-assigned" className="scroll-mt-20 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/45">
+            유튜브 채널 배정
+          </h2>
           <div className="flex flex-wrap items-center gap-2">
             {channels.length > 0 ? (
               <>
