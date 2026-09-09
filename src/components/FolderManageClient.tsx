@@ -412,34 +412,44 @@ export function FolderManageClient({
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start lg:gap-10">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <div className="mb-8">
+        <h1 className="font-display text-3xl font-semibold text-ink">폴더 관리</h1>
+        <p className="mt-2 text-sm text-ink/55">
+          주제별 폴더를 만들고 유튜브 채널을 배정하세요. 한 채널을 여러 폴더에 넣을 수
+          있습니다.
+        </p>
+      </div>
+
+      <div className="md:grid md:grid-cols-[13rem_minmax(0,1fr)] md:items-start md:gap-8">
       <nav
         aria-label="페이지 바로가기"
-        className="sticky top-0 z-20 -mx-4 mb-6 flex gap-1.5 overflow-x-auto border-b border-ink/10 bg-paper/95 px-4 py-2 backdrop-blur lg:top-4 lg:mx-0 lg:mb-0 lg:block lg:overflow-visible lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none"
+        className="mb-6 rounded-xl border border-ink/10 bg-paper p-3 md:sticky md:top-4 md:mb-0"
       >
-        <p className="mb-2 hidden text-[11px] font-semibold uppercase tracking-wide text-ink/40 lg:block">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink/40">
           바로가기
         </p>
+        <div className="flex flex-wrap gap-1 md:flex-col md:flex-nowrap md:gap-0">
         <a
           href="#section-folders"
-          className="shrink-0 rounded-full border border-ink/10 px-2.5 py-1 text-xs text-ink/70 hover:border-crimson/30 hover:text-crimson lg:mb-0.5 lg:block lg:rounded-md lg:border-0 lg:px-2 lg:py-1"
+          className="rounded-md px-2 py-1.5 text-xs font-medium text-ink/75 hover:bg-ink/5 hover:text-crimson"
         >
           내 폴더
           <span className="ml-1 text-ink/40">{folders.length}</span>
         </a>
         <a
           href="#section-assigned"
-          className="shrink-0 rounded-full border border-ink/10 px-2.5 py-1 text-xs text-ink/70 hover:border-crimson/30 hover:text-crimson lg:mb-0.5 lg:block lg:rounded-md lg:border-0 lg:px-2 lg:py-1"
+          className="rounded-md px-2 py-1.5 text-xs font-medium text-ink/75 hover:bg-ink/5 hover:text-crimson"
         >
           등록된 채널
           <span className="ml-1 text-ink/40">{registeredChannels.length}</span>
         </a>
-        <div className="contents lg:mt-1 lg:block lg:space-y-0.5 lg:border-l lg:border-ink/10 lg:pl-2">
+        <div className="flex w-full flex-wrap gap-1 md:mt-1 md:w-auto md:flex-col md:border-l md:border-ink/10 md:pl-2">
           {registeredGroups.map((g) => (
             <a
               key={g.key}
               href={`#assign-folder-${g.key}`}
-              className="shrink-0 rounded-full border border-ink/10 px-2.5 py-1 text-xs text-ink/55 hover:border-crimson/30 hover:text-crimson lg:block lg:truncate lg:rounded-md lg:border-0 lg:px-2 lg:py-1 lg:hover:bg-ink/5"
+              className="truncate rounded-md px-2 py-1 text-xs text-ink/55 hover:bg-ink/5 hover:text-crimson"
             >
               {g.title}
               <span className="ml-1 text-ink/35">{g.channels.length}</span>
@@ -448,24 +458,17 @@ export function FolderManageClient({
         </div>
         <a
           href="#section-unregistered"
-          className="shrink-0 rounded-full border border-ink/10 px-2.5 py-1 text-xs text-ink/70 hover:border-crimson/30 hover:text-crimson lg:mt-1 lg:block lg:rounded-md lg:border-0 lg:px-2 lg:py-1"
+          className="rounded-md px-2 py-1.5 text-xs font-medium text-ink/75 hover:bg-ink/5 hover:text-crimson md:mt-1"
         >
           미등록 채널
           <span className="ml-1 text-ink/40">
             {unregisteredChannels.length}
           </span>
         </a>
+        </div>
       </nav>
 
-      <div className="min-w-0 space-y-10 overflow-x-hidden">
-      <div>
-        <h1 className="font-display text-3xl font-semibold text-ink">폴더 관리</h1>
-        <p className="mt-2 text-sm text-ink/55">
-          주제별 폴더를 만들고 유튜브 채널을 배정하세요. 한 채널을 여러 폴더에 넣을 수
-          있습니다.
-        </p>
-      </div>
-
+      <div className="min-w-0 space-y-10">
       <form onSubmit={createFolder} className="flex flex-wrap gap-2">
         <input
           value={name}
@@ -604,6 +607,7 @@ export function FolderManageClient({
           </div>
         )}
       </section>
+      </div>
       </div>
 
       {assignOpen ? (
